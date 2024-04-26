@@ -1,12 +1,10 @@
 twitter-to-kafka-service:
-  twitter-Keywords:
+  twitter-keywords:
     - Java
     - Microservices
-    - Spring
     - Kafka
     - Elasticsearch
-  welcome-Message:
-    Welcome to the twitter to kafka application.
+  welcome-message: Hello microservices!
   enable-mock-tweets: true
   mock-min-tweet-length: 5
   mock-max-tweet-length: 15

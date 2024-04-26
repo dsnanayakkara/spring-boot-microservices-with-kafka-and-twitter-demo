@@ -1,7 +1,7 @@
 package com.microservices.demo.twitter.to.kafka.service.runner.impl;
 
 import com.microservices.demo.config.TwitterToKafkaServiceConfigData;
-import com.microservices.demo.twitter.to.kafka.service.exception.TwitterToKafkaServiceRuntimeException;
+import com.microservices.demo.twitter.to.kafka.service.exception.TwitterToKafkaServiceException;
 import com.microservices.demo.twitter.to.kafka.service.listener.TwitterKafkaStatusListener;
 import com.microservices.demo.twitter.to.kafka.service.runner.StreamRunner;
 import org.slf4j.Logger;
@@ -68,7 +68,7 @@ public class MockKafkaStreamRunner implements StreamRunner {
 
     @Override
     public void start() throws TwitterException {
-        final String[] keywords = twitterToKafkaServiceConfigData.getTwitterKeyWords().toArray(new String[0]);
+        final String[] keywords = twitterToKafkaServiceConfigData.getTwitterKeywords().toArray(new String[0]);
         final int minTweetLength = twitterToKafkaServiceConfigData.getMockMinTweetLength();
         final int maxTweetLength = twitterToKafkaServiceConfigData.getMockMaxTweetLength();
         long sleepTimeMs = twitterToKafkaServiceConfigData.getMockSleepMs();
@@ -95,7 +95,7 @@ public class MockKafkaStreamRunner implements StreamRunner {
         try {
             Thread.sleep(sleepTimeMs);
         } catch (InterruptedException e) {
-            throw new TwitterToKafkaServiceRuntimeException("Error while sleeping for waiting new status to create!!");
+            throw new TwitterToKafkaServiceException("Error while sleeping for waiting new status to create!!");
         }
     }
 

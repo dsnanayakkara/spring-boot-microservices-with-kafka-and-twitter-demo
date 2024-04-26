@@ -2,32 +2,39 @@
 <project xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns="http://maven.apache.org/POM/4.0.0"
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
+    <modules>
+        <module>twitter-to-kafka-service</module>
+        <module>app-config-data</module>
+    </modules>
     <parent>
         <groupId>org.springframework.boot</groupId>
         <artifactId>spring-boot-starter-parent</artifactId>
-        <version>2.7.18</version>
+        <version>2.3.4.RELEASE</version>
         <relativePath/> <!-- lookup parent from repository -->
     </parent>
     <groupId>com.microservices.demo</groupId>
     <artifactId>microservices-demo</artifactId>
     <version>0.0.1-SNAPSHOT</version>
-    <name>Microservices Demo</name>
-    <description>Microservices Demo project for Spring Boot</description>
-    <modules>
-        <module>twitter-to-kafka-service</module>
-        <module>app-config-data</module>
-    </modules>
+    <name>microservices-demo</name>
+    <description>Microservices demo project for Spring Boot</description>
     <packaging>pom</packaging>
+
     <properties>
         <java.version>11</java.version>
         <spring-boot.version>2.7.18</spring-boot.version>
         <maven-compiler-plugin.version>3.13.0</maven-compiler-plugin.version>
-        <twitter4j-version>4.0.7</twitter4j-version>
+        <twitter4j.version>4.0.7</twitter4j.version>
         <lombok.version>1.18.22</lombok.version>
     </properties>
 
     <dependencyManagement>
         <dependencies>
+            <!-- LOCAL -->
+            <dependency>
+                <groupId>com.microservices.demo</groupId>
+                <artifactId>app-config-data</artifactId>
+                <version>${project.version}</version>
+            </dependency>
             <dependency>
                 <groupId>org.springframework.boot</groupId>
                 <artifactId>spring-boot-starter</artifactId>
@@ -45,38 +52,38 @@
                     </exclusion>
                 </exclusions>
             </dependency>
+
             <dependency>
                 <groupId>org.twitter4j</groupId>
                 <artifactId>twitter4j-stream</artifactId>
-                <version>${twitter4j-version}</version>
+                <version>${twitter4j.version}</version>
             </dependency>
+
             <dependency>
                 <groupId>org.projectlombok</groupId>
                 <artifactId>lombok</artifactId>
                 <version>${lombok.version}</version>
                 <scope>provided</scope>
             </dependency>
-            <dependency>
-                <groupId>com.microservices.demo</groupId>
-                <artifactId>app-config-data</artifactId>
-                <version>${project.version}</version>
-            </dependency>
+
+
         </dependencies>
     </dependencyManagement>
 
 
     <build>
+        <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <version>${maven-compiler-plugin.version}</version>
+                <configuration>
+                    <release>11</release>
+                </configuration>
+            </plugin>
+        </plugins>
         <pluginManagement>
             <plugins>
-                <plugin>
-                    <groupId>org.apache.maven.plugins</groupId>
-                    <artifactId>maven-compiler-plugin</artifactId>
-                    <version>${maven-compiler-plugin.version}</version>
-                    <configuration>
-                        <source>11</source>
-                        <target>11</target>
-                    </configuration>
-                </plugin>
                 <plugin>
                     <groupId>org.springframework.boot</groupId>
                     <artifactId>spring-boot-maven-plugin</artifactId>
@@ -84,7 +91,6 @@
                 </plugin>
             </plugins>
         </pluginManagement>
-
     </build>
 
 </project>
