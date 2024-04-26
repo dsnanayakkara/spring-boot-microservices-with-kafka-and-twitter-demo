@@ -25,7 +25,13 @@ import java.util.concurrent.ThreadLocalRandom;
 public class MockKafkaStreamRunner implements StreamRunner {
 
     private static final Logger LOG = LoggerFactory.getLogger(MockKafkaStreamRunner.class);
+
+    private final TwitterToKafkaServiceConfigData twitterToKafkaServiceConfigData;
+
+    private final TwitterKafkaStatusListener twitterKafkaStatusListener;
+
     private static final Random RANDOM = new Random();
+
     private static final String[] WORDS = new String[]{
             "Lorem",
             "ipsum",
@@ -50,15 +56,15 @@ public class MockKafkaStreamRunner implements StreamRunner {
             "malesuada",
             "libero"
     };
+
     private static final String tweetAsRawJson = "{" +
             "\"created_at\":\"{0}\"," +
             "\"id\":\"{1}\"," +
             "\"text\":\"{2}\"," +
             "\"user\":{\"id\":\"{3}\"}" +
             "}";
+
     private static final String TWITTER_STATUS_DATE_FORMAT = "EEE MMM dd HH:mm:ss zzz yyyy";
-    private final TwitterToKafkaServiceConfigData twitterToKafkaServiceConfigData;
-    private final TwitterKafkaStatusListener twitterKafkaStatusListener;
 
     public MockKafkaStreamRunner(TwitterToKafkaServiceConfigData configData,
                                  TwitterKafkaStatusListener statusListener) {
