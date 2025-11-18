@@ -6,10 +6,18 @@
         <artifactId>microservices-demo</artifactId>
         <groupId>com.microservices.demo</groupId>
         <version>0.0.1-SNAPSHOT</version>
+        <relativePath>../pom.xml</relativePath>
     </parent>
     <modelVersion>4.0.0</modelVersion>
 
     <artifactId>kafka</artifactId>
+    <packaging>pom</packaging>
 
+    <modules>
+        <module>kafka-model</module>
+        <module>kafka-admin</module>
+        <module>kafka-producer</module>
+        <module>kafka-consumer</module>
+    </modules>
 
 </project>
