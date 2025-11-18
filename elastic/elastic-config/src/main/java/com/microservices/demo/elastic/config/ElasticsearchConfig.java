@@ -36,17 +36,26 @@ public class ElasticsearchConfig extends ElasticsearchConfiguration {
                         .withConnectTimeout(Duration.ofMillis(elasticConfigData.getConnectionTimeoutMs()))
                         .withSocketTimeout(Duration.ofMillis(elasticConfigData.getSocketTimeoutMs()));
 
-        // Add authentication if credentials are provided
-        if (elasticsearchUsername != null && !elasticsearchUsername.isEmpty()) {
-            builder = builder.withBasicAuth(elasticsearchUsername, elasticsearchPassword);
-        }
+        // Build configuration based on auth and SSL settings
+        boolean hasAuth = elasticsearchUsername != null && !elasticsearchUsername.isEmpty();
 
-        // Enable SSL if configured
-        if (useSsl) {
-            builder = builder.usingSsl();
+        if (hasAuth && useSsl) {
+            // Both auth and SSL
+            return builder.withBasicAuth(elasticsearchUsername, elasticsearchPassword)
+                    .usingSsl()
+                    .build();
+        } else if (hasAuth) {
+            // Auth only
+            return builder.withBasicAuth(elasticsearchUsername, elasticsearchPassword)
+                    .build();
+        } else if (useSsl) {
+            // SSL only
+            return builder.usingSsl()
+                    .build();
+        } else {
+            // No auth, no SSL
+            return builder.build();
         }
-
-        return builder.build();
     }
 }
 
