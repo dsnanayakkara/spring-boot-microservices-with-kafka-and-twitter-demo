@@ -1,0 +1,27 @@
+# Railway.app deployment configuration
+# Deploy with: railway up
+
+[build]
+builder = "DOCKERFILE"
+dockerfilePath = "./Dockerfile"
+
+[deploy]
+numReplicas = 1
+restartPolicyType = "ON_FAILURE"
+restartPolicyMaxRetries = 10
+
+# Health check configuration
+healthcheckPath = "/actuator/health"
+healthcheckTimeout = 100
+
+[[services]]
+name = "event-stream-service"
+dockerfilePath = "./event-stream-service/Dockerfile"
+
+[[services]]
+name = "elastic-query-service"
+dockerfilePath = "./elastic/elastic-query-service/Dockerfile"
+
+[[services]]
+name = "dashboard"
+dockerfilePath = "./dashboard-ui/Dockerfile"

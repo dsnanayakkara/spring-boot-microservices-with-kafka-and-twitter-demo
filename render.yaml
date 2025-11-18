@@ -1,0 +1,65 @@
+# Render.com Blueprint for deployment
+# Deploy via Render Dashboard or render-cli
+
+services:
+  # React Dashboard (Static Site)
+  - type: web
+    name: social-events-dashboard
+    env: static
+    buildCommand: cd dashboard-ui && npm install && npm run build
+    staticPublishPath: dashboard-ui/dist
+    pullRequestPreviewsEnabled: true
+    headers:
+      - path: /*
+        name: X-Frame-Options
+        value: SAMEORIGIN
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html
+
+  # REST API Service
+  - type: web
+    name: elastic-query-service
+    env: docker
+    dockerfilePath: ./elastic/elastic-query-service/Dockerfile
+    plan: free
+    healthCheckPath: /actuator/health
+    envVars:
+      - key: SERVER_PORT
+        value: 8084
+      - key: SPRING_PROFILES_ACTIVE
+        value: prod
+      - key: ELASTICSEARCH_HOST
+        fromService:
+          type: pserv
+          name: elasticsearch
+          property: host
+      - key: ELASTICSEARCH_PORT
+        fromService:
+          type: pserv
+          name: elasticsearch
+          property: port
+
+  # Event Stream Service (Optional - requires Kafka)
+  - type: web
+    name: event-stream-service
+    env: docker
+    dockerfilePath: ./event-stream-service/Dockerfile
+    plan: free
+    healthCheckPath: /actuator/health
+    envVars:
+      - key: SERVER_PORT
+        value: 8080
+      - key: SPRING_PROFILES_ACTIVE
+        value: prod
+      - key: KAFKA_BOOTSTRAP_SERVERS
+        value: ${KAFKA_BOOTSTRAP_SERVERS}
+      - key: SCHEMA_REGISTRY_URL
+        value: ${SCHEMA_REGISTRY_URL}
+
+# Note: Render's free tier doesn't include managed Kafka or Elasticsearch
+# You'll need to use external services like:
+# - Upstash Kafka (free tier)
+# - Bonsai Elasticsearch (free tier)
+# - Elastic Cloud (free trial)

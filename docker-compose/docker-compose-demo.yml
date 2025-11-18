@@ -1,0 +1,239 @@
+# Docker Compose for Demo Deployment (Single Machine)
+# Optimized for lower resource usage while maintaining functionality
+# Suitable for Oracle Cloud Free Tier, Railway, or local development
+
+version: '3.8'
+
+services:
+  # Zookeeper (required for Kafka)
+  zookeeper:
+    image: confluentinc/cp-zookeeper:${KAFKA_VERSION:-7.6.0}
+    hostname: zookeeper
+    container_name: zookeeper
+    ports:
+      - "2181:2181"
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+      ZOOKEEPER_SYNC_LIMIT: 2
+    healthcheck:
+      test: echo stat | nc localhost 2181
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - social-events-network
+
+  # Single Kafka Broker (reduced from 3 for demo)
+  kafka-broker:
+    image: confluentinc/cp-kafka:${KAFKA_VERSION:-7.6.0}
+    hostname: kafka-broker
+    container_name: kafka-broker
+    depends_on:
+      zookeeper:
+        condition: service_healthy
+    ports:
+      - "9092:9092"
+      - "19092:19092"
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: 'zookeeper:2181'
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka-broker:9092,PLAINTEXT_HOST://localhost:19092
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: 'true'
+      KAFKA_LOG_RETENTION_HOURS: 24
+      KAFKA_LOG_SEGMENT_BYTES: 536870912
+      KAFKA_COMPRESSION_TYPE: 'lz4'
+    healthcheck:
+      test: kafka-broker-api-versions --bootstrap-server localhost:9092
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - social-events-network
+
+  # Schema Registry
+  schema-registry:
+    image: confluentinc/cp-schema-registry:${KAFKA_VERSION:-7.6.0}
+    hostname: schema-registry
+    container_name: schema-registry
+    depends_on:
+      kafka-broker:
+        condition: service_healthy
+    ports:
+      - "8081:8081"
+    environment:
+      SCHEMA_REGISTRY_HOST_NAME: schema-registry
+      SCHEMA_REGISTRY_KAFKASTORE_BOOTSTRAP_SERVERS: 'kafka-broker:9092'
+      SCHEMA_REGISTRY_LISTENERS: http://0.0.0.0:8081
+      SCHEMA_REGISTRY_KAFKASTORE_TOPIC_REPLICATION_FACTOR: 1
+      SCHEMA_REGISTRY_DEBUG: 'true'
+    healthcheck:
+      test: curl -f http://localhost:8081/ || exit 1
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - social-events-network
+
+  # Elasticsearch (single node for demo)
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:${ELASTIC_VERSION:-8.11.0}
+    container_name: elasticsearch
+    environment:
+      - discovery.type=single-node
+      - xpack.security.enabled=false
+      - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
+      - bootstrap.memory_lock=true
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+    ports:
+      - "9200:9200"
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:9200/_cluster/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+    networks:
+      - social-events-network
+
+  # Kibana
+  kibana:
+    image: docker.elastic.co/kibana/kibana:${ELASTIC_VERSION:-8.11.0}
+    container_name: kibana
+    depends_on:
+      elasticsearch:
+        condition: service_healthy
+    ports:
+      - "5601:5601"
+    environment:
+      - ELASTICSEARCH_HOSTS=http://elasticsearch:9200
+      - SERVER_PUBLICBASEURL=http://localhost:5601
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:5601/api/status || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+    networks:
+      - social-events-network
+
+  # Event Stream Service
+  event-stream-service:
+    build:
+      context: ..
+      dockerfile: event-stream-service/Dockerfile
+    container_name: event-stream-service
+    depends_on:
+      kafka-broker:
+        condition: service_healthy
+      schema-registry:
+        condition: service_healthy
+    ports:
+      - "8080:8080"
+    environment:
+      - SPRING_PROFILES_ACTIVE=docker
+      - KAFKA_BOOTSTRAP_SERVERS=kafka-broker:9092
+      - SCHEMA_REGISTRY_URL=http://schema-registry:8081
+      - KAFKA_TOPIC_NAME=social-events
+      - KAFKA_NUM_PARTITIONS=1
+      - KAFKA_REPLICATION_FACTOR=1
+      - EVENT_STREAM_MOCK_ENABLED=true
+      - EVENT_STREAM_MOCK_SLEEP_MS=1000
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/actuator/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 60s
+    networks:
+      - social-events-network
+
+  # Elasticsearch Service
+  elasticsearch-service:
+    build:
+      context: ..
+      dockerfile: elasticsearch-service/Dockerfile
+    container_name: elasticsearch-service
+    depends_on:
+      kafka-broker:
+        condition: service_healthy
+      elasticsearch:
+        condition: service_healthy
+    ports:
+      - "8083:8083"
+    environment:
+      - SPRING_PROFILES_ACTIVE=docker
+      - KAFKA_BOOTSTRAP_SERVERS=kafka-broker:9092
+      - SCHEMA_REGISTRY_URL=http://schema-registry:8081
+      - ELASTICSEARCH_HOST=elasticsearch
+      - ELASTICSEARCH_PORT=9200
+      - ELASTICSEARCH_INDEX_NAME=social-events-index
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8083/actuator/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 90s
+    networks:
+      - social-events-network
+
+  # REST API Service
+  elastic-query-service:
+    build:
+      context: ..
+      dockerfile: elastic/elastic-query-service/Dockerfile
+    container_name: elastic-query-service
+    depends_on:
+      elasticsearch:
+        condition: service_healthy
+    ports:
+      - "8084:8084"
+    environment:
+      - SPRING_PROFILES_ACTIVE=docker
+      - ELASTICSEARCH_HOST=elasticsearch
+      - ELASTICSEARCH_PORT=9200
+      - ELASTICSEARCH_INDEX_NAME=social-events-index
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8084/actuator/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 60s
+    networks:
+      - social-events-network
+
+  # Dashboard UI
+  dashboard:
+    build:
+      context: ../dashboard-ui
+      dockerfile: Dockerfile
+    container_name: dashboard
+    depends_on:
+      - elastic-query-service
+    ports:
+      - "3000:80"
+    environment:
+      - API_BASE_URL=http://localhost:8084
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:80"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+    networks:
+      - social-events-network
+
+networks:
+  social-events-network:
+    driver: bridge
+
+volumes:
+  zookeeper-data:
+  kafka-data:
+  elasticsearch-data:
