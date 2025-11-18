@@ -33,11 +33,17 @@ jobs:
       - name: Build Docker images
         run: |
           docker build -f ./event-stream-service/Dockerfile -t social-events/event-stream-service:latest .
+          docker build -f ./kafka-consumer-service/Dockerfile -t social-events/kafka-consumer-service:latest .
+          docker build -f ./kafka-streams-service/Dockerfile -t social-events/kafka-streams-service:latest .
+          docker build -f ./elasticsearch-service/Dockerfile -t social-events/elasticsearch-service:latest .
           docker build -f ./elastic/elastic-query-service/Dockerfile -t social-events/elastic-query-service:latest .
 
       - name: Save Docker images
         run: |
           docker save social-events/event-stream-service:latest | gzip > event-stream-service.tar.gz
+          docker save social-events/kafka-consumer-service:latest | gzip > kafka-consumer-service.tar.gz
+          docker save social-events/kafka-streams-service:latest | gzip > kafka-streams-service.tar.gz
+          docker save social-events/elasticsearch-service:latest | gzip > elasticsearch-service.tar.gz
           docker save social-events/elastic-query-service:latest | gzip > elastic-query-service.tar.gz
 
       - name: Upload artifacts
