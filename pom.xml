@@ -7,6 +7,7 @@
 		<module>kafka-consumer-service</module>
 		<module>kafka-streams-service</module>
 		<module>elasticsearch-service</module>
+		<module>elastic/elastic-query-service</module>
 		<module>app-config-data</module>
 		<module>kafka</module>
 		<module>kafka/kafka-model</module>
@@ -17,6 +18,7 @@
 		<module>elastic/elastic-model</module>
 		<module>elastic/elastic-config</module>
 		<module>elastic/elastic-index-client</module>
+		<module>elastic/elastic-query-client</module>
 		<module>common-config</module>
 	</modules>
 	<parent>
@@ -97,6 +99,11 @@
 			<dependency>
 				<groupId>com.microservices.demo</groupId>
 				<artifactId>elastic-index-client</artifactId>
+				<version>${project.version}</version>
+			</dependency>
+			<dependency>
+				<groupId>com.microservices.demo</groupId>
+				<artifactId>elastic-query-client</artifactId>
 				<version>${project.version}</version>
 			</dependency>
 
