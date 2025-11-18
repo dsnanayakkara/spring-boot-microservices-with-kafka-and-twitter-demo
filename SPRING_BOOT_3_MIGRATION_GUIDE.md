@@ -30,10 +30,10 @@ This document outlines the migration from Spring Boot 2.7.18 to Spring Boot 3.2.
 Spring Boot 3.0 requires Jakarta EE 9+ which renamed all `javax.*` packages to `jakarta.*`.
 
 **Files to Update**:
-1. `kafka/kafka-producer/src/main/java/.../TwitterKafkaProducer.java`
-   - Line 14: `import javax.annotation.PreDestroy;`
+1. `kafka/kafka-producer/src/main/java/.../AvroKafkaProducer.java`
+   - Line 4: `import javax.annotation.PreDestroy;`
 
-2. `twitter-to-kafka-service/src/main/java/.../EnhancedMockStreamRunner.java`
+2. `event-stream-service/src/main/java/.../EnhancedMockStreamRunner.java`
    - Line 13: `import javax.annotation.PreDestroy;`
 
 **Migration**:
@@ -63,7 +63,7 @@ import jakarta.annotation.PreDestroy;
 Spring Framework 6.0 deprecated `ListenableFuture` in favor of `CompletableFuture`.
 
 **File to Update**:
-- `kafka/kafka-producer/src/main/java/.../TwitterKafkaProducer.java`
+- `kafka/kafka-producer/src/main/java/.../AvroKafkaProducer.java`
   - Lines 11-12: `ListenableFuture` and `ListenableFutureCallback` imports
   - Lines 30-31: Return type changed
   - Lines 44-62: Callback pattern needs update
@@ -74,7 +74,7 @@ Spring Framework 6.0 deprecated `ListenableFuture` in favor of `CompletableFutur
 import org.springframework.util.concurrent.ListenableFuture;
 import org.springframework.util.concurrent.ListenableFutureCallback;
 
-ListenableFuture<SendResult<Long, TwitterAvroModel>> kafkaResultFuture =
+ListenableFuture<SendResult<Long, SocialEventAvroModel>> kafkaResultFuture =
     kafkaTemplate.send(topicName, key, message);
 
 kafkaResultFuture.addCallback(new ListenableFutureCallback<>() {
@@ -82,13 +82,13 @@ kafkaResultFuture.addCallback(new ListenableFutureCallback<>() {
     public void onFailure(Throwable throwable) { ... }
 
     @Override
-    public void onSuccess(SendResult<Long, TwitterAvroModel> result) { ... }
+    public void onSuccess(SendResult<Long, SocialEventAvroModel> result) { ... }
 });
 
 // After
 import java.util.concurrent.CompletableFuture;
 
-CompletableFuture<SendResult<Long, TwitterAvroModel>> kafkaResultFuture =
+CompletableFuture<SendResult<Long, SocialEventAvroModel>> kafkaResultFuture =
     kafkaTemplate.send(topicName, key, message);
 
 kafkaResultFuture.whenComplete((result, throwable) -> {
