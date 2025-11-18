@@ -11,9 +11,11 @@ This project demonstrates a **production-ready, end-to-end microservices archite
 - **Stream Processing** - Real-time analytics with Kafka Streams
 - **Search & Storage** - Elasticsearch indexing and full-text search
 - **REST API** - Query interface with OpenAPI documentation
+- **Dashboard UI** - Real-time visualization and monitoring interface
 
 ### Technology Stack
 
+**Backend:**
 - **Java 21** - Latest LTS version with virtual threads support
 - **Spring Boot 3.2.5** - Latest generation Spring framework
 - **Spring Framework 6.1.x** - Core framework with Jakarta EE 10
@@ -25,6 +27,13 @@ This project demonstrates a **production-ready, end-to-end microservices archite
 - **Kibana 8.11.0** - Data visualization platform
 - **SpringDoc OpenAPI 2.3.0** - API documentation with Swagger UI
 - **Spring Boot Actuator** - Production-ready monitoring and health checks
+
+**Frontend:**
+- **React 18** - Modern UI framework
+- **Vite** - Next-generation build tool
+- **Tailwind CSS** - Utility-first CSS framework
+- **Recharts** - Composable charting library
+- **Axios** - Promise-based HTTP client
 
 ### What Changed from Original Twitter Integration
 
@@ -55,6 +64,13 @@ This project originally integrated with Twitter's streaming API, but due to Twit
 │   ├── kafka-admin/             # Kafka cluster administration
 │   ├── kafka-producer/          # Kafka producer implementation
 │   └── kafka-consumer/          # Kafka consumer implementation
+├── dashboard-ui/                # React dashboard (Port 3000)
+│   ├── src/
+│   │   ├── components/          # React components
+│   │   ├── services/            # API client services
+│   │   └── App.jsx              # Main application
+│   ├── Dockerfile               # Docker configuration
+│   └── package.json             # NPM dependencies
 ├── app-config-data/             # Configuration data classes
 ├── common-config/               # Shared retry and common configurations
 ├── docker-compose/              # Docker Compose for infrastructure
@@ -69,6 +85,7 @@ This project originally integrated with Twitter's streaming API, but due to Twit
 
 - **Java 21** (LTS) - [Download here](https://adoptium.net/)
 - **Maven 3.9+**
+- **Node.js 18+** and **npm** (for dashboard UI)
 - **Docker** and **Docker Compose**
 - At least **8GB RAM** for Docker (for all services)
 
@@ -201,6 +218,31 @@ http://localhost:5601
 ```
 
 Navigate to "Discover" and create an index pattern for `social-events-index` to visualize the data.
+
+### Access the Dashboard UI
+
+**Start the Dashboard:**
+
+```bash
+cd dashboard-ui
+npm install
+npm run dev
+```
+
+**Access the Dashboard:**
+```
+http://localhost:3000
+```
+
+**Dashboard Features:**
+- **Real-time Event Monitoring** - Auto-refresh every 5 seconds
+- **Event Search** - Full-text search across all events
+- **Interactive Charts** - Visualize events over time
+- **Service Health Monitoring** - Real-time status of all microservices
+- **Statistics Dashboard** - Total events, unique users, events per minute
+- **Responsive Design** - Works on desktop, tablet, and mobile
+
+See [dashboard-ui/README.md](dashboard-ui/README.md) for more details.
 
 ## 📊 Message Generation
 
@@ -519,17 +561,11 @@ The application automatically creates topics on startup. Check logs:
 ✅ **Phase 2: Kafka Streams Service** - Real-time stream processing and analytics
 ✅ **Phase 3: Elasticsearch Integration** - Full-text search and indexing
 ✅ **Phase 4: REST API Service** - Query interface with OpenAPI documentation
+✅ **Phase 5: Dashboard UI** - Real-time event visualization and monitoring
 
 ### Future Enhancements
 
 The following features are planned for future releases:
-
-**Phase 5: Dashboard UI** (Marked for Future)
-- React 18 + Vite application
-- Real-time event visualization
-- Charts and analytics (Recharts)
-- Auto-refresh from REST API
-- User-friendly interface
 
 **Additional Improvements:**
 - Authentication & Authorization (OAuth 2.0 / JWT)
