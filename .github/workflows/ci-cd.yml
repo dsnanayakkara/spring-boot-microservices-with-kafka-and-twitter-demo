@@ -109,28 +109,42 @@ jobs:
         id: deployment
         uses: actions/deploy-pages@v4
 
-  # Build and push to Docker Hub (optional - requires secrets)
+  # Build and push to Docker Hub (optional - requires DOCKERHUB_USERNAME and DOCKERHUB_TOKEN secrets)
   push-to-dockerhub:
     needs: [build-backend, build-frontend]
     runs-on: ubuntu-latest
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    # This job will skip if Docker Hub secrets are not configured
+    # To enable: Settings -> Secrets -> Actions -> Add DOCKERHUB_USERNAME and DOCKERHUB_TOKEN
     steps:
       - uses: actions/checkout@v4
 
+      - name: Check for Docker Hub credentials
+        id: check-secrets
+        run: |
+          if [[ -n "${{ secrets.DOCKERHUB_USERNAME }}" ]]; then
+            echo "has-credentials=true" >> $GITHUB_OUTPUT
+          else
+            echo "has-credentials=false" >> $GITHUB_OUTPUT
+            echo "⚠️  Docker Hub credentials not configured. Skipping Docker Hub push."
+            echo "To enable Docker Hub push, add DOCKERHUB_USERNAME and DOCKERHUB_TOKEN secrets."
+          fi
+
       - name: Log in to Docker Hub
-        if: ${{ secrets.DOCKERHUB_USERNAME != '' }}
+        if: steps.check-secrets.outputs.has-credentials == 'true'
         uses: docker/login-action@v3
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
       - name: Download backend images
+        if: steps.check-secrets.outputs.has-credentials == 'true'
         uses: actions/download-artifact@v4
         with:
           name: backend-images
 
       - name: Load and push images
-        if: ${{ secrets.DOCKERHUB_USERNAME != '' }}
+        if: steps.check-secrets.outputs.has-credentials == 'true'
         run: |
           docker load < event-stream-service.tar.gz
           docker load < elastic-query-service.tar.gz
@@ -138,3 +152,10 @@ jobs:
           docker tag social-events/elastic-query-service:latest ${{ secrets.DOCKERHUB_USERNAME }}/elastic-query-service:latest
           docker push ${{ secrets.DOCKERHUB_USERNAME }}/event-stream-service:latest
           docker push ${{ secrets.DOCKERHUB_USERNAME }}/elastic-query-service:latest
+          echo "✅ Successfully pushed images to Docker Hub"
+
+      - name: Skip Docker Hub push
+        if: steps.check-secrets.outputs.has-credentials == 'false'
+        run: |
+          echo "ℹ️  Docker Hub push skipped - credentials not configured"
+          echo "This is optional and does not affect the build or deployment"
