@@ -34,32 +34,33 @@ public class ElasticsearchConfig extends ElasticsearchConfiguration {
         boolean hasAuth = elasticsearchUsername != null && !elasticsearchUsername.isEmpty();
 
         // Build configuration in one chain without intermediate variables
-        // IMPORTANT: SSL must be configured BEFORE authentication in the builder chain
+        // IMPORTANT ORDER: connectedTo() -> usingSsl() -> withBasicAuth() -> timeouts -> build()
+        // SSL and auth must be configured BEFORE timeout configurations
 
         if (hasAuth && useSsl) {
-            // Both SSL and auth (SSL first, then auth)
+            // Both SSL and auth (SSL first, then auth, then timeouts)
             return ClientConfiguration.builder()
                     .connectedTo(elasticConfigData.getConnectionUrl())
-                    .withConnectTimeout(Duration.ofMillis(elasticConfigData.getConnectionTimeoutMs()))
-                    .withSocketTimeout(Duration.ofMillis(elasticConfigData.getSocketTimeoutMs()))
                     .usingSsl()
                     .withBasicAuth(elasticsearchUsername, elasticsearchPassword)
+                    .withConnectTimeout(Duration.ofMillis(elasticConfigData.getConnectionTimeoutMs()))
+                    .withSocketTimeout(Duration.ofMillis(elasticConfigData.getSocketTimeoutMs()))
                     .build();
         } else if (hasAuth) {
-            // Auth only
+            // Auth only (auth before timeouts)
             return ClientConfiguration.builder()
                     .connectedTo(elasticConfigData.getConnectionUrl())
+                    .withBasicAuth(elasticsearchUsername, elasticsearchPassword)
                     .withConnectTimeout(Duration.ofMillis(elasticConfigData.getConnectionTimeoutMs()))
                     .withSocketTimeout(Duration.ofMillis(elasticConfigData.getSocketTimeoutMs()))
-                    .withBasicAuth(elasticsearchUsername, elasticsearchPassword)
                     .build();
         } else if (useSsl) {
-            // SSL only
+            // SSL only (SSL before timeouts)
             return ClientConfiguration.builder()
                     .connectedTo(elasticConfigData.getConnectionUrl())
+                    .usingSsl()
                     .withConnectTimeout(Duration.ofMillis(elasticConfigData.getConnectionTimeoutMs()))
                     .withSocketTimeout(Duration.ofMillis(elasticConfigData.getSocketTimeoutMs()))
-                    .usingSsl()
                     .build();
         } else {
             // No auth, no SSL
