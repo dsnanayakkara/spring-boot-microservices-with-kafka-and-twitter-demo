@@ -5,6 +5,7 @@
 	<modules>
 		<module>event-stream-service</module>
 		<module>kafka-consumer-service</module>
+		<module>kafka-streams-service</module>
 		<module>app-config-data</module>
 		<module>kafka</module>
 		<module>kafka/kafka-model</module>
