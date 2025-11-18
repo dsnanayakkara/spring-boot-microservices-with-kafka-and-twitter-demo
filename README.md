@@ -203,8 +203,10 @@ Check health endpoints:
 # Event Stream Service
 curl http://localhost:8080/actuator/health
 
-# Kafka Consumer Service
-curl http://localhost:8081/actuator/health
+# Kafka Consumer Service (Note: Port 18081 in Docker Compose, 8081 in local dev)
+curl http://localhost:18081/actuator/health  # Docker Compose
+# OR
+curl http://localhost:8081/actuator/health   # Local development
 
 # Kafka Streams Service
 curl http://localhost:8082/actuator/health
@@ -536,8 +538,10 @@ All services expose the following actuator endpoints:
 # Event Stream Service
 curl http://localhost:8080/actuator/health
 
-# Kafka Consumer Service
-curl http://localhost:8081/actuator/health
+# Kafka Consumer Service (Port 18081 in Docker, 8081 in local dev)
+curl http://localhost:18081/actuator/health  # Docker Compose
+# OR
+curl http://localhost:8081/actuator/health   # Local development
 
 # Kafka Streams Service
 curl http://localhost:8082/actuator/health
@@ -587,34 +591,52 @@ This project includes enterprise-grade security and resilience features:
 - Protected REST API endpoints
 - Bearer token support
 
-### 2. Rate Limiting (Bucket4j)
+### 2. Method-Level Security (@PreAuthorize)
+- Fine-grained authorization with @PreAuthorize annotations
+- Role-based access control (USER, ADMIN, API roles)
+- SpEL expression support for complex authorization rules
+- Integration with JWT authentication
+
+### 3. Rate Limiting (Bucket4j)
 - Token bucket algorithm
 - 100 requests per minute per IP (configurable)
 - HTTP 429 responses for exceeded limits
 - Per-user or per-IP limiting
 
-### 3. Dead Letter Queues (Kafka DLQ)
+### 4. Dead Letter Queues (Kafka DLQ)
 - Automatic retry with exponential backoff
 - Failed messages sent to DLQ topic
 - Message loss prevention
 - Reprocessing capabilities
 
-### 4. Circuit Breakers (Resilience4j)
+### 5. Circuit Breakers (Resilience4j)
 - Prevent cascading failures
 - Automatic failure detection
 - Fallback methods for degraded service
 - Health indicator integration
+
+### 6. Elasticsearch Authentication
+- Optional basic authentication (username/password)
+- SSL/TLS encryption support
+- Backward compatible configuration
+- Environment-based credentials
+
+### 7. Schema Registry Authentication
+- Basic authentication for Confluent Schema Registry
+- USER_INFO credentials pattern
+- Secure schema management
+- Prevents unauthorized schema modifications
 
 **See [SECURITY_FEATURES.md](SECURITY_FEATURES.md) for comprehensive documentation.**
 
 ### Resource Impact
 
 These features add minimal overhead:
-- **CPU**: +5%
-- **RAM**: +130MB
+- **CPU**: +6%
+- **RAM**: +140MB
 - **Latency**: +5-10ms per request
 
-**Oracle Cloud Free Tier**: Still viable with 80% capacity remaining!
+**Oracle Cloud Free Tier**: Still viable with 81% capacity remaining!
 
 ## 🛠️ Development
 
@@ -694,9 +716,11 @@ The application automatically creates topics on startup. Check logs:
 
 **Security & Resilience:**
 - **JWT Authentication**: Stateless token-based authentication
+- **Method-Level Security**: Role-based access control with @PreAuthorize
 - **Rate Limiting**: Token bucket algorithm (Bucket4j)
 - **Circuit Breakers**: Failure isolation with Resilience4j
 - **Retry Mechanisms**: Exponential backoff for resilience
+- **Infrastructure Authentication**: Elasticsearch and Schema Registry authentication
 
 **Infrastructure:**
 - **Multi-Broker Setup**: High availability with 3 Kafka brokers
@@ -716,9 +740,12 @@ The application automatically creates topics on startup. Check logs:
 
 **Enterprise Security & Resilience:**
 - ✅ **JWT Authentication & Authorization** - Stateless, token-based API security
+- ✅ **Method-Level Security** - Fine-grained @PreAuthorize authorization with roles
 - ✅ **Rate Limiting** - 100 req/min per IP using Bucket4j
 - ✅ **Dead Letter Queues** - Kafka DLQ with retry logic and message reprocessing
 - ✅ **Circuit Breakers** - Resilience4j for failure isolation and fallbacks
+- ✅ **Elasticsearch Authentication** - Optional basic auth + SSL/TLS encryption
+- ✅ **Schema Registry Authentication** - Secure schema management with USER_INFO pattern
 
 **DevOps & Deployment:**
 - ✅ **GitHub Actions CI/CD** - Automated build, test, and deployment
