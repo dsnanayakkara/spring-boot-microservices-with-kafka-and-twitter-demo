@@ -7,10 +7,21 @@ WORKDIR /app
 COPY pom.xml .
 COPY app-config-data ./app-config-data
 COPY common-config ./common-config
+COPY common-security ./common-security
+COPY kafka/pom.xml ./kafka/pom.xml
+COPY kafka/kafka-model ./kafka/kafka-model
+COPY kafka/kafka-admin ./kafka/kafka-admin
+COPY kafka/kafka-producer ./kafka/kafka-producer
+COPY kafka/kafka-consumer ./kafka/kafka-consumer
 COPY elastic/pom.xml ./elastic/pom.xml
 COPY elastic/elastic-model ./elastic/elastic-model
 COPY elastic/elastic-config ./elastic/elastic-config
+COPY elastic/elastic-index-client ./elastic/elastic-index-client
 COPY elastic/elastic-query-client ./elastic/elastic-query-client
+COPY event-stream-service ./event-stream-service
+COPY kafka-consumer-service ./kafka-consumer-service
+COPY kafka-streams-service ./kafka-streams-service
+COPY elasticsearch-service ./elasticsearch-service
 
 # Copy service
 COPY elastic/elastic-query-service ./elastic/elastic-query-service
