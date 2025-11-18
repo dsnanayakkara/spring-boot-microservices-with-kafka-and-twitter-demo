@@ -7,9 +7,10 @@ import org.springframework.boot.context.event.ApplicationReadyEvent;
 import org.springframework.context.event.EventListener;
 import org.springframework.data.elasticsearch.core.ElasticsearchOperations;
 import org.springframework.data.elasticsearch.core.IndexOperations;
-import org.springframework.data.elasticsearch.core.index.Settings;
 import org.springframework.data.elasticsearch.core.mapping.IndexCoordinates;
 import org.springframework.stereotype.Component;
+
+import java.util.Map;
 
 @Component
 public class ElasticsearchIndexInitializer {
@@ -35,12 +36,12 @@ public class ElasticsearchIndexInitializer {
             LOG.info("Creating Elasticsearch index: {}", indexName);
 
             // Create index settings
-            Settings settings = Settings.builder()
-                    .put("index.number_of_shards", 3)
-                    .put("index.number_of_replicas", 1)
-                    .put("index.refresh_interval", "1s")
-                    .put("analysis.analyzer.default.type", "standard")
-                    .build();
+            Map<String, Object> settings = Map.of(
+                    "index.number_of_shards", 3,
+                    "index.number_of_replicas", 1,
+                    "index.refresh_interval", "1s",
+                    "analysis.analyzer.default.type", "standard"
+            );
 
             indexOperations.create(settings);
 
