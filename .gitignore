@@ -1,35 +1,60 @@
-HELP.md
+# Maven
 target/
-!.mvn/wrapper/maven-wrapper.jar
-!**/src/main/**/target/
-!**/src/test/**/target/
+pom.xml.tag
+pom.xml.releaseBackup
+pom.xml.versionsBackup
+pom.xml.next
+release.properties
+dependency-reduced-pom.xml
+buildNumber.properties
+.mvn/timing.properties
+.mvn/wrapper/maven-wrapper.jar
 
+# Java
+*.class
+*.log
+*.jar
+*.war
+*.nar
+*.ear
+*.zip
+*.tar.gz
+*.rar
+hs_err_pid*
+
+# IDE
+.idea/
+*.iml
+*.iws
+*.ipr
+.vscode/
+.eclipse/
+.settings/
+.classpath
+.project
+.metadata/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Spring Boot
+application-local.yml
+application-dev.yml
+
+# Credentials (if any are added in future)
+**/twitter4j.properties
+**/credentials.properties
+**/*.key
+**/*.pem
+
+# Logs
+logs/
 *.log
 
-### STS ###
-.apt_generated
-.classpath
-.factorypath
-.project
-.settings
-.springBeans
-.sts4-cache
-
-### IntelliJ IDEA ###
-.idea
-*.iws
-*.iml
-*.ipr
-
-### NetBeans ###
-/nbproject/private/
-/nbbuild/
-/dist/
-/nbdist/
-/.nb-gradle/
-build/
-!**/src/main/**/build/
-!**/src/test/**/build/
-
-### VS Code ###
-.vscode/
+# Temporary files
+tmp/
+temp/
+*.tmp
+*.swp
+*~
