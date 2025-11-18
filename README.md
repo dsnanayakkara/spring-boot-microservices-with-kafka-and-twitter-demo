@@ -1,18 +1,29 @@
 # High-Throughput Kafka Microservices Demo
 
-A Spring Boot microservices demonstration project showcasing event-driven architecture with Apache Kafka, Avro serialization, and high-throughput message processing.
+A complete Spring Boot microservices architecture demonstrating event-driven patterns with Apache Kafka, real-time stream processing, Elasticsearch search, and RESTful APIs.
 
 ## 🎯 Project Overview
 
-This project demonstrates a production-ready microservices architecture for processing streaming data at high throughput using:
+This project demonstrates a **production-ready, end-to-end microservices architecture** for processing streaming data at high throughput. The system includes:
 
-- **Java 21** - Latest LTS version with modern language features
+- **Event Generation** - Mock social event producer
+- **Message Processing** - Kafka consumer with metrics
+- **Stream Processing** - Real-time analytics with Kafka Streams
+- **Search & Storage** - Elasticsearch indexing and full-text search
+- **REST API** - Query interface with OpenAPI documentation
+
+### Technology Stack
+
+- **Java 21** - Latest LTS version with virtual threads support
 - **Spring Boot 3.2.5** - Latest generation Spring framework
 - **Spring Framework 6.1.x** - Core framework with Jakarta EE 10
-- **Apache Kafka** - Distributed event streaming platform
-- **Spring Kafka 3.1.x** - Latest Kafka integration
-- **Apache Avro** - Efficient data serialization
+- **Apache Kafka** - Distributed event streaming platform (3-broker cluster)
+- **Kafka Streams** - Real-time stream processing with windowing
+- **Apache Avro 1.11.3** - Efficient data serialization
 - **Confluent Platform 7.6.0** - Schema Registry and Kafka tools
+- **Elasticsearch 8.11.0** - Full-text search engine
+- **Kibana 8.11.0** - Data visualization platform
+- **SpringDoc OpenAPI 2.3.0** - API documentation with Swagger UI
 - **Spring Boot Actuator** - Production-ready monitoring and health checks
 
 ### What Changed from Original Twitter Integration
@@ -20,22 +31,36 @@ This project demonstrates a production-ready microservices architecture for proc
 This project originally integrated with Twitter's streaming API, but due to Twitter's API pricing changes, it has been updated with a **realistic data simulator** that generates social media-like messages for learning and development purposes. This provides:
 
 - ✅ No API credentials required
-- ✅ Configurable message generation rate
+- ✅ Configurable message generation rate (60 events/min)
 - ✅ Realistic message patterns and diversity
 - ✅ Perfect for learning Kafka microservices
 - ✅ High-throughput message generation for load testing
+- ✅ Complete end-to-end data pipeline
 
 ## 📁 Project Structure
 
 ```
-├── event-stream-service/        # Main service that generates and produces events
+├── event-stream-service/        # Event producer service (Port 8080)
+├── kafka-consumer-service/      # Kafka consumer with batch processing (Port 8081)
+├── kafka-streams-service/       # Stream processing service (Port 8082)
+├── elasticsearch-service/       # Elasticsearch indexing service (Port 8083)
+├── elastic/
+│   ├── elastic-model/           # Elasticsearch domain models
+│   ├── elastic-config/          # Elasticsearch configuration
+│   ├── elastic-index-client/    # Elasticsearch indexing client
+│   ├── elastic-query-client/    # Elasticsearch query client
+│   └── elastic-query-service/   # REST API service (Port 8084)
 ├── kafka/
 │   ├── kafka-model/             # Avro schema and generated models
 │   ├── kafka-admin/             # Kafka cluster administration
-│   └── kafka-producer/          # Kafka producer implementation
+│   ├── kafka-producer/          # Kafka producer implementation
+│   └── kafka-consumer/          # Kafka consumer implementation
 ├── app-config-data/             # Configuration data classes
 ├── common-config/               # Shared retry and common configurations
-└── docker-compose/              # Docker Compose for Kafka cluster
+├── docker-compose/              # Docker Compose for infrastructure
+├── start-all-services.sh        # Unified startup script
+├── stop-all-services.sh         # Unified shutdown script
+└── ARCHITECTURE.md              # Detailed architecture documentation
 ```
 
 ## 🚀 Quick Start
@@ -45,69 +70,137 @@ This project originally integrated with Twitter's streaming API, but due to Twit
 - **Java 21** (LTS) - [Download here](https://adoptium.net/)
 - **Maven 3.9+**
 - **Docker** and **Docker Compose**
-- At least **4GB RAM** for Docker
+- At least **8GB RAM** for Docker (for all services)
 
-### Step 1: Start Kafka Cluster
+### Option 1: Automated Startup (Recommended)
 
-Navigate to the docker-compose directory and start the Kafka cluster:
+Use the unified startup script to launch the entire stack:
+
+```bash
+./start-all-services.sh
+```
+
+This script will:
+1. Start infrastructure (Kafka cluster, Elasticsearch, Kibana)
+2. Build all services with Maven
+3. Start all 5 microservices in the correct order
+4. Display service URLs and process IDs
+
+**To stop all services:**
+```bash
+./stop-all-services.sh
+```
+
+### Option 2: Manual Startup
+
+#### Step 1: Start Infrastructure
 
 ```bash
 cd docker-compose
 docker-compose -f kafka_cluster.yml up -d
+cd ..
 ```
 
-This will start:
-- **Zookeeper** on port 2181
-- **3 Kafka Brokers** on ports 19092, 29092, 39092
-- **Schema Registry** on port 8081
+This starts:
+- **Zookeeper** (port 2181)
+- **3 Kafka Brokers** (ports 19092, 29092, 39092)
+- **Schema Registry** (port 8081)
+- **Elasticsearch** (port 9200)
+- **Kibana** (port 5601)
 
-Wait for all services to be healthy (approximately 1-2 minutes):
+Wait 60 seconds for infrastructure to be ready.
+
+#### Step 2: Build All Services
 
 ```bash
-docker-compose -f kafka_cluster.yml ps
+mvn clean install -DskipTests
 ```
 
-### Step 2: Build the Application
+#### Step 3: Start Services
 
-From the project root:
+Open 5 terminal windows and run each service:
 
-```bash
-mvn clean install
-```
-
-### Step 3: Run the Application
-
+**Terminal 1 - Event Stream Service:**
 ```bash
 cd event-stream-service
 mvn spring-boot:run
 ```
 
-Or run from your IDE (IntelliJ IDEA, Eclipse, etc.) by running:
-```
-com.microservices.demo.event.stream.service.EventStreamServiceApplication
-```
-
-### Step 4: Monitor the Application
-
-Once running, the application will:
-1. Initialize Kafka topics automatically
-2. Start generating realistic social media events
-3. Send events to Kafka topic `social-events`
-
-**Health Check Endpoint:**
+**Terminal 2 - Kafka Consumer Service:**
 ```bash
+cd kafka-consumer-service
+mvn spring-boot:run
+```
+
+**Terminal 3 - Kafka Streams Service:**
+```bash
+cd kafka-streams-service
+mvn spring-boot:run
+```
+
+**Terminal 4 - Elasticsearch Service:**
+```bash
+cd elasticsearch-service
+mvn spring-boot:run
+```
+
+**Terminal 5 - REST API Service:**
+```bash
+cd elastic/elastic-query-service
+mvn spring-boot:run
+```
+
+### Verify Services are Running
+
+Check health endpoints:
+
+```bash
+# Event Stream Service
 curl http://localhost:8080/actuator/health
+
+# Kafka Consumer Service
+curl http://localhost:8081/actuator/health
+
+# Kafka Streams Service
+curl http://localhost:8082/actuator/health
+
+# Elasticsearch Service
+curl http://localhost:8083/actuator/health
+
+# REST API Service
+curl http://localhost:8084/actuator/health
 ```
 
-**Metrics Endpoint:**
-```bash
-curl http://localhost:8080/actuator/metrics
+### Access the API
+
+**Swagger UI (Interactive API Documentation):**
+```
+http://localhost:8084/swagger-ui.html
 ```
 
-**Kafka Health:**
+**Sample API Requests:**
+
 ```bash
-curl http://localhost:8080/actuator/health/kafka
+# Get all events (paginated)
+curl "http://localhost:8084/api/v1/events?page=0&size=10"
+
+# Search events by text
+curl "http://localhost:8084/api/v1/events/search?text=kafka&page=0&size=10"
+
+# Get event by ID
+curl "http://localhost:8084/api/v1/events/{event-id}"
+
+# Get events by user ID
+curl "http://localhost:8084/api/v1/events/user/12345"
 ```
+
+### Access Kibana (Data Visualization)
+
+```
+http://localhost:5601
+```
+
+Navigate to "Discover" and create an index pattern for `social-events-index` to visualize the data.
 
 ## 📊 Message Generation
 
@@ -165,36 +258,135 @@ event-stream-service:
     - YourKeyword2
 ```
 
-## 🏗️ Architecture
+## 🏗️ System Architecture
 
-### Data Flow
+For detailed architecture documentation, see [ARCHITECTURE.md](ARCHITECTURE.md).
+
+### High-Level Data Flow
 
 ```
-Enhanced Event Stream Generator
-        ↓
-  Generate Social Event
-        ↓
-Convert to Avro Model (SocialEventAvroModel)
-        ↓
-   Kafka Producer
-        ↓
-Kafka Cluster (3 brokers)
-        ↓
- Topic: social-events
- (3 partitions, replication factor 3)
+Event Stream Service (Port 8080)
+    ↓ Generates 60 events/min
+    ↓ Avro serialization
+    ↓
+Kafka Cluster (3 Brokers: 19092, 29092, 39092)
+    ├── Topic: social-events (3 partitions, RF=3)
+    │
+    ├─→ Consumer Service (Port 8081)
+    │   └─→ Batch processing (500 records/poll)
+    │       └─→ Metrics tracking
+    │
+    ├─→ Streams Service (Port 8082)
+    │   └─→ Real-time processing
+    │       ├─→ Word count (5-min windows)
+    │       └─→ Filtered events
+    │
+    └─→ Elasticsearch Service (Port 8083)
+        └─→ Indexes to Elasticsearch
+            └─→ Full-text search enabled
+                └─→ REST API Service (Port 8084)
+                    └─→ Swagger UI + API endpoints
 ```
 
-### Key Components
+### Services Overview
 
-1. **EnhancedMockStreamRunner**: Generates realistic social media events at configurable rate
-2. **AvroKafkaProducer**: Generic producer that sends Avro-serialized events to Kafka
-3. **KafkaAdminClient**: Creates topics and manages Kafka infrastructure
-4. **SocialEventAvroModel**: Schema-based data model for type-safe event handling
-5. **RetryTemplate**: Handles transient failures with exponential backoff
+#### 1. Event Stream Service (Port 8080)
+- **Purpose**: Generates mock social events and publishes to Kafka
+- **Rate**: 60 events per minute (configurable)
+- **Serialization**: Apache Avro
+- **Key Features**:
+  - Realistic event generation with diverse content
+  - Automatic topic creation
+  - Health checks and metrics
+
+#### 2. Kafka Consumer Service (Port 8081)
+- **Purpose**: General-purpose event consumer with batch processing
+- **Consumer Group**: `social-events-consumer-group`
+- **Key Features**:
+  - Batch processing (500 records per poll)
+  - 3 concurrent consumer threads
+  - Micrometer metrics (consumed, processed, failed counts)
+  - Processing time tracking
+
+#### 3. Kafka Streams Service (Port 8082)
+- **Purpose**: Real-time stream processing and analytics
+- **Application ID**: `social-events-streams-app`
+- **Key Features**:
+  - Event filtering (events with text content)
+  - Word extraction and stop word removal
+  - Word count with 5-minute tumbling windows
+  - User event count aggregation
+  - 2 stream processing threads
+  - Output to derived topics
+
+#### 4. Elasticsearch Service (Port 8083)
+- **Purpose**: Indexes events to Elasticsearch for search
+- **Consumer Group**: `elasticsearch-consumer-group`
+- **Index**: `social-events-index` (3 shards, 1 replica)
+- **Key Features**:
+  - Avro to Elasticsearch transformation
+  - Batch indexing for efficiency
+  - Automatic index creation with mappings
+  - Full-text search on event text
+
+#### 5. REST API Service (Port 8084)
+- **Purpose**: Query interface for indexed events
+- **Base Path**: `/api/v1/events`
+- **Key Features**:
+  - **GET** `/api/v1/events/{id}` - Get event by ID
+  - **GET** `/api/v1/events` - Get all events (paginated)
+  - **GET** `/api/v1/events/search?text={text}` - Full-text search
+  - **GET** `/api/v1/events/user/{userId}` - Get events by user
+  - Pagination and sorting support
+  - OpenAPI 3.0 documentation
+  - Swagger UI at `/swagger-ui.html`
+
+### Infrastructure Components
+
+| Component | Port | Purpose |
+|-----------|------|---------|
+| Zookeeper | 2181 | Kafka coordination |
+| Kafka Broker 1 | 19092 | Message broker |
+| Kafka Broker 2 | 29092 | Message broker |
+| Kafka Broker 3 | 39092 | Message broker |
+| Schema Registry | 8081 | Avro schema management |
+| Elasticsearch | 9200 | Search engine |
+| Kibana | 5601 | Data visualization |
+
+### Key Design Patterns
+
+1. **Event-Driven Architecture**
+   - Asynchronous message-driven communication
+   - Loose coupling between services
+   - Event sourcing for audit trail
+
+2. **CQRS (Command Query Responsibility Segregation)**
+   - Write path: Kafka → Elasticsearch (indexing)
+   - Read path: REST API → Elasticsearch (queries)
+   - Separate models for reads and writes
+
+3. **Stream Processing**
+   - Real-time analytics with Kafka Streams
+   - Stateful aggregations
+   - Time-windowed operations
+
+4. **Batch Processing**
+   - Efficient high-throughput consumption
+   - Configurable batch sizes
+   - Parallel processing
+
+### Scalability Features
+
+- **Kafka**: 3 brokers, 3 partitions per topic, replication factor 3
+- **Elasticsearch**: 3 shards, 1 replica for fault tolerance
+- **Consumers**: Concurrent threads (3 per service)
+- **Stateless Services**: Horizontal scaling ready
 
 ## 📈 Monitoring & Observability
 
 ### Spring Boot Actuator Endpoints
+
+All services expose the following actuator endpoints:
 
 | Endpoint | Description |
 |----------|-------------|
@@ -205,13 +397,52 @@ Kafka Cluster (3 brokers)
 | `/actuator/env` | Environment properties |
 | `/actuator/loggers` | Logging configuration |
 
-### Production Monitoring
-
-The application exposes Prometheus metrics for integration with monitoring systems:
+### Service Health Checks
 
 ```bash
-curl http://localhost:8080/actuator/prometheus
+# Event Stream Service
+curl http://localhost:8080/actuator/health
+
+# Kafka Consumer Service
+curl http://localhost:8081/actuator/health
+
+# Kafka Streams Service
+curl http://localhost:8082/actuator/health
+
+# Elasticsearch Service
+curl http://localhost:8083/actuator/health
+
+# REST API Service
+curl http://localhost:8084/actuator/health
 ```
+
+### Production Monitoring
+
+All services expose Prometheus metrics for integration with monitoring systems:
+
+```bash
+# Example: Event Stream Service metrics
+curl http://localhost:8080/actuator/prometheus
+
+# Consumer Service metrics (includes custom consumer metrics)
+curl http://localhost:8081/actuator/prometheus
+```
+
+### Custom Metrics
+
+The **Kafka Consumer Service** provides custom metrics:
+- `kafka.consumer.messages.consumed` - Total messages consumed
+- `kafka.consumer.messages.processed` - Successfully processed messages
+- `kafka.consumer.messages.failed` - Failed messages
+- `kafka.consumer.processing.time` - Processing time distribution
+
+### Kibana Dashboards
+
+Access Kibana at `http://localhost:5601` to:
+- Create visualizations of indexed events
+- Build custom dashboards
+- Analyze event patterns and trends
+- Monitor indexing performance
 
 ## 🛠️ Development
 
@@ -282,21 +513,59 @@ The application automatically creates topics on startup. Check logs:
 - **Health Checks**: Production-ready monitoring
 - **Multi-Broker Setup**: High availability configuration
 
-### Next Steps
+### Implemented Features
 
-1. Add a **Kafka Consumer** service to process messages
-2. Implement **Kafka Streams** for stream processing
-3. Add **Elasticsearch** integration for message storage and search
-4. Create a **REST API** to query processed data
-5. Add **Docker Compose** for the entire application stack
+✅ **Phase 1: Kafka Consumer Service** - Batch processing with metrics tracking
+✅ **Phase 2: Kafka Streams Service** - Real-time stream processing and analytics
+✅ **Phase 3: Elasticsearch Integration** - Full-text search and indexing
+✅ **Phase 4: REST API Service** - Query interface with OpenAPI documentation
+
+### Future Enhancements
+
+The following features are planned for future releases:
+
+**Phase 5: Dashboard UI** (Marked for Future)
+- React 18 + Vite application
+- Real-time event visualization
+- Charts and analytics (Recharts)
+- Auto-refresh from REST API
+- User-friendly interface
+
+**Additional Improvements:**
+- Authentication & Authorization (OAuth 2.0 / JWT)
+- Rate limiting on REST API
+- Caching layer (Redis)
+- Message encryption for sensitive data
+- Dead letter queues for failed messages
+- Circuit breakers for resilience
+- Distributed tracing (OpenTelemetry)
+- Container orchestration (Kubernetes manifests)
+
+## 📝 Logs
+
+Service logs are written to the `./logs` directory when using the unified startup script:
+
+- `event-stream-service.log`
+- `kafka-consumer-service.log`
+- `kafka-streams-service.log`
+- `elasticsearch-service.log`
+- `elastic-query-service.log`
+
+Monitor logs in real-time:
+```bash
+tail -f logs/event-stream-service.log
+tail -f logs/kafka-consumer-service.log
+```
 
 ## 🤝 Contributing
 
 This is a learning demonstration project. Feel free to:
 - Experiment with different configurations
 - Add new message patterns
-- Implement consumer services
-- Extend with additional microservices
+- Extend the stream processing topology
+- Add new REST API endpoints
+- Implement additional microservices
+- Create custom Kibana dashboards
 
 ## 📝 License
 

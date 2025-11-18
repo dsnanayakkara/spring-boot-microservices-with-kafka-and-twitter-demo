@@ -1,5 +1,273 @@
 # Changelog
 
+## Version 3.2.0 - Complete Microservices Architecture
+
+### Full End-to-End Implementation
+
+**Release Date**: 2024
+
+This release completes the microservices architecture with Kafka consumer, stream processing, Elasticsearch integration, and REST API services, creating a production-ready event-driven system.
+
+#### 🚀 New Services
+
+**1. Kafka Consumer Service (Port 8081)**
+- Batch processing with configurable batch size (500 records/poll)
+- 3 concurrent consumer threads for parallel processing
+- Custom Micrometer metrics for observability
+- Consumer group: `social-events-consumer-group`
+- Metrics tracked:
+  - Messages consumed counter
+  - Messages processed counter
+  - Messages failed counter
+  - Processing time distribution
+
+**2. Kafka Streams Service (Port 8082)**
+- Real-time stream processing with Kafka Streams
+- Event filtering (events with text content only)
+- Word extraction with stop word removal
+- Word count aggregation with 5-minute tumbling windows
+- User event count aggregation
+- 2 stream processing threads
+- Application ID: `social-events-streams-app`
+- Output topics:
+  - `social-events-filtered` - Filtered event stream
+  - `social-events-word-count` - Word count results
+
+**3. Elasticsearch Service (Port 8083)**
+- Kafka to Elasticsearch indexing pipeline
+- Avro to Elasticsearch document transformation
+- Batch indexing for high throughput
+- Automatic index creation with proper mappings
+- Consumer group: `elasticsearch-consumer-group`
+- Index: `social-events-index` (3 shards, 1 replica)
+- Full-text search capability on event text
+
+**4. REST API Service (Port 8084)**
+- RESTful query interface for indexed events
+- OpenAPI 3.0 / Swagger UI documentation
+- Base path: `/api/v1/events`
+- Endpoints:
+  - `GET /api/v1/events/{id}` - Get event by ID
+  - `GET /api/v1/events` - Get all events (paginated)
+  - `GET /api/v1/events/search?text={text}` - Full-text search
+  - `GET /api/v1/events/user/{userId}` - Get events by user ID
+- Pagination and sorting support
+- Swagger UI: `http://localhost:8084/swagger-ui.html`
+
+#### 📦 New Modules
+
+**Infrastructure Modules**:
+- `kafka-consumer/` - Reusable Kafka consumer implementation
+- `elastic/elastic-model/` - Elasticsearch domain models
+- `elastic/elastic-config/` - Elasticsearch configuration
+- `elastic/elastic-index-client/` - Elasticsearch indexing client
+- `elastic/elastic-query-client/` - Elasticsearch query client
+
+**Service Modules**:
+- `kafka-consumer-service/` - Batch consumer service
+- `kafka-streams-service/` - Stream processing service
+- `elasticsearch-service/` - Indexing service
+- `elastic/elastic-query-service/` - REST API service
+
+#### 🔧 Infrastructure Updates
+
+**Docker Compose Enhancements**:
+- Added Elasticsearch 8.11.0 container
+- Added Kibana 8.11.0 for data visualization
+- Health checks for all services
+- Proper service dependencies and startup order
+- Network configuration for service communication
+
+**New Ports**:
+- Elasticsearch: 9200
+- Kibana: 5601
+- Kafka Consumer Service: 8081
+- Kafka Streams Service: 8082
+- Elasticsearch Service: 8083
+- REST API Service: 8084
+
+#### 🛠️ Operational Tools
+
+**Startup/Shutdown Scripts**:
+- `start-all-services.sh` - Unified script to start entire stack
+  - Starts infrastructure (Kafka + Elasticsearch)
+  - Builds all services with Maven
+  - Starts all 5 microservices in correct order
+  - Displays service URLs and process IDs
+  - Writes logs to `./logs` directory
+
+- `stop-all-services.sh` - Unified script to stop all services
+  - Gracefully stops all running services
+  - Shuts down Docker infrastructure
+  - Clean shutdown of all components
+
+#### 📚 Documentation
+
+**New Documentation**:
+- `ARCHITECTURE.md` - Comprehensive architecture documentation
+  - Architecture diagram
+  - Data flow explanation
+  - Technology stack details
+  - Service ports table
+  - Design patterns (Event-Driven, CQRS, Stream Processing)
+  - Scalability features
+  - Performance characteristics
+
+**Updated Documentation**:
+- `README.md` - Complete rewrite with:
+  - All 5 services documented
+  - Quick start guide with automated startup
+  - Service overview for each component
+  - Infrastructure components table
+  - API usage examples
+  - Monitoring and observability guide
+  - Logs management
+  - Future enhancements roadmap
+
+#### ✨ Key Features
+
+**1. Event-Driven Architecture**
+- Asynchronous message-driven communication
+- Loose coupling between services
+- Event sourcing for audit trail
+- Multiple independent consumers
+
+**2. CQRS Pattern**
+- Write path: Kafka → Elasticsearch (indexing)
+- Read path: REST API → Elasticsearch (queries)
+- Separate models for reads and writes
+- Optimized for different use cases
+
+**3. Stream Processing**
+- Real-time analytics with Kafka Streams
+- Stateful aggregations
+- Time-windowed operations (5-minute windows)
+- Topology-based processing
+
+**4. Full-Text Search**
+- Elasticsearch 8.11.0 integration
+- Efficient indexing pipeline
+- Multiple query types (by ID, text, user)
+- Pagination support
+
+**5. API Documentation**
+- Interactive Swagger UI
+- OpenAPI 3.0 specification
+- Request/response examples
+- Parameter validation
+
+#### 📊 Monitoring & Observability
+
+**Spring Boot Actuator** (all services):
+- `/actuator/health` - Health checks
+- `/actuator/metrics` - Application metrics
+- `/actuator/prometheus` - Prometheus metrics
+- `/actuator/info` - Application information
+
+**Custom Metrics** (Consumer Service):
+- `kafka.consumer.messages.consumed`
+- `kafka.consumer.messages.processed`
+- `kafka.consumer.messages.failed`
+- `kafka.consumer.processing.time`
+
+**Kibana Integration**:
+- Visual analytics at `http://localhost:5601`
+- Index pattern: `social-events-index`
+- Real-time event visualization
+- Custom dashboard creation
+
+#### 🎯 Design Patterns Implemented
+
+1. **Producer-Consumer Pattern**: Event generation and consumption
+2. **Fan-out Pattern**: Multiple consumers from single topic
+3. **Stream Processing Pattern**: Real-time data transformation
+4. **Indexing Pattern**: Event persistence for search
+5. **API Gateway Pattern**: Unified query interface
+6. **Health Check Pattern**: Service monitoring
+7. **Batch Processing Pattern**: Efficient high-throughput consumption
+
+#### 📈 Performance & Scalability
+
+**Kafka Configuration**:
+- 3 brokers for high availability
+- 3 partitions per topic for parallelism
+- Replication factor 3 for fault tolerance
+- Multiple consumer groups for independent processing
+
+**Elasticsearch Configuration**:
+- 3 shards for distributed search
+- 1 replica for fault tolerance
+- 1-second refresh interval
+- Batch indexing for efficiency
+
+**Consumer Configuration**:
+- 3 concurrent threads per consumer service
+- 500 records per poll batch
+- Configurable polling timeouts
+- Automatic offset management
+
+#### 🔮 Future Enhancements (Marked for Future)
+
+**Phase 5: Dashboard UI**
+- React 18 + Vite application
+- Real-time event visualization
+- Charts and analytics (Recharts)
+- Auto-refresh from REST API
+
+**Additional Improvements**:
+- Authentication & Authorization (OAuth 2.0)
+- Rate limiting on REST API
+- Caching layer (Redis)
+- Message encryption
+- Dead letter queues
+- Circuit breakers
+- Distributed tracing (OpenTelemetry)
+- Kubernetes manifests
+
+#### ⚡ Breaking Changes
+
+None - this is a feature addition release.
+
+#### ✅ Tested Components
+
+- ✅ Event generation and Kafka publishing
+- ✅ Batch consumer processing
+- ✅ Stream processing topology
+- ✅ Elasticsearch indexing
+- ✅ REST API endpoints
+- ✅ Full-text search
+- ✅ Pagination and filtering
+- ✅ Health checks on all services
+- ✅ Startup/shutdown scripts
+
+#### 📝 Migration Notes
+
+**For Developers**:
+1. Run `./start-all-services.sh` to start entire stack
+2. Wait for all services to be healthy (~2 minutes)
+3. Access Swagger UI at `http://localhost:8084/swagger-ui.html`
+4. Monitor logs in `./logs` directory
+5. Use `./stop-all-services.sh` to shutdown
+
+**Infrastructure Requirements**:
+- At least 8GB RAM for Docker (all services)
+- Docker and Docker Compose
+- Java 21
+- Maven 3.9+
+
+#### 🎓 Learning Outcomes
+
+This release demonstrates:
+- Complete event-driven microservices architecture
+- Kafka producer and consumer patterns
+- Stream processing with Kafka Streams
+- Search integration with Elasticsearch
+- RESTful API design with OpenAPI
+- Service orchestration and monitoring
+- Production-ready operational practices
+
+---
+
 ## Version 3.1.0 - Terminology Update (Generic Event Stream)
 
 ### Major Refactoring - Terminology Modernization
