@@ -28,7 +28,7 @@ This project originally integrated with Twitter's streaming API, but due to Twit
 ## 📁 Project Structure
 
 ```
-├── twitter-to-kafka-service/    # Main service that generates and produces messages
+├── event-stream-service/        # Main service that generates and produces events
 ├── kafka/
 │   ├── kafka-model/             # Avro schema and generated models
 │   ├── kafka-admin/             # Kafka cluster administration
@@ -78,21 +78,21 @@ mvn clean install
 ### Step 3: Run the Application
 
 ```bash
-cd twitter-to-kafka-service
+cd event-stream-service
 mvn spring-boot:run
 ```
 
 Or run from your IDE (IntelliJ IDEA, Eclipse, etc.) by running:
 ```
-com.microservices.demo.twitter.to.kafka.service.TwitterToKafkaServiceApplication
+com.microservices.demo.event.stream.service.EventStreamServiceApplication
 ```
 
 ### Step 4: Monitor the Application
 
 Once running, the application will:
 1. Initialize Kafka topics automatically
-2. Start generating realistic social media messages
-3. Send messages to Kafka topic `twitter-topic`
+2. Start generating realistic social media events
+3. Send events to Kafka topic `social-events`
 
 **Health Check Endpoint:**
 ```bash
@@ -134,33 +134,33 @@ The enhanced data simulator generates realistic social media messages with:
 
 **application.yml** - Main application configuration
 ```yaml
-twitter-to-kafka-service:
-  twitter-keywords: [Java, Microservices, Kafka, Elasticsearch, SpringBoot, Docker, Kubernetes]
-  enable-mock-tweets: true
-  mock-sleep-ms: 1000  # Generate message every 1 second
+event-stream-service:
+  event-keywords: [Java, Microservices, Kafka, Elasticsearch, SpringBoot, Docker, Kubernetes]
+  enable-mock-events: true
+  mock-sleep-ms: 1000  # Generate event every 1 second
 
 kafka-config:
   bootstrap-servers: localhost:19092, localhost:29092, localhost:39092
   schema-registry-url: http://localhost:8081
-  topic-name: twitter-topic
+  topic-name: social-events
   num-of-partitions: 3
   replication-factor: 3
 ```
 
-### Customizing Message Generation
+### Customizing Event Generation
 
-To change message generation rate, edit `application.yml`:
+To change event generation rate, edit `application.yml`:
 
 ```yaml
-twitter-to-kafka-service:
-  mock-sleep-ms: 500  # Generate messages every 500ms (2 per second)
+event-stream-service:
+  mock-sleep-ms: 500  # Generate events every 500ms (2 per second)
 ```
 
 To add custom keywords:
 
 ```yaml
-twitter-to-kafka-service:
-  twitter-keywords:
+event-stream-service:
+  event-keywords:
     - YourKeyword1
     - YourKeyword2
 ```
@@ -170,26 +170,26 @@ twitter-to-kafka-service:
 ### Data Flow
 
 ```
-Enhanced Data Simulator
+Enhanced Event Stream Generator
         ↓
-  Generate Message
+  Generate Social Event
         ↓
-Convert to Avro Model (TwitterAvroModel)
+Convert to Avro Model (SocialEventAvroModel)
         ↓
    Kafka Producer
         ↓
 Kafka Cluster (3 brokers)
         ↓
- Topic: twitter-topic
+ Topic: social-events
  (3 partitions, replication factor 3)
 ```
 
 ### Key Components
 
-1. **EnhancedMockStreamRunner**: Generates realistic social media messages at configurable rate
-2. **KafkaProducer**: Sends Avro-serialized messages to Kafka
+1. **EnhancedMockStreamRunner**: Generates realistic social media events at configurable rate
+2. **AvroKafkaProducer**: Generic producer that sends Avro-serialized events to Kafka
 3. **KafkaAdminClient**: Creates topics and manages Kafka infrastructure
-4. **TwitterAvroModel**: Schema-based data model for type-safe message handling
+4. **SocialEventAvroModel**: Schema-based data model for type-safe event handling
 5. **RetryTemplate**: Handles transient failures with exponential backoff
 
 ## 📈 Monitoring & Observability

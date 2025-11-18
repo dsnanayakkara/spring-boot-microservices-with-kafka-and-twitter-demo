@@ -176,7 +176,7 @@ cd ..
 mvn clean install
 
 # 3. Run application
-cd twitter-to-kafka-service
+cd event-stream-service
 mvn spring-boot:run
 
 # 4. Check health
@@ -238,7 +238,7 @@ mock-sleep-ms: 100  # 10 msgs/second = 36,000/hour
 
 ### Kafka Topic Info
 ```bash
-docker exec kafka-broker-1 kafka-topics --describe --topic twitter-topic --bootstrap-server localhost:9092
+docker exec kafka-broker-1 kafka-topics --describe --topic social-events --bootstrap-server localhost:9092
 
 # Shows: 3 partitions, replication factor 3
 ```
@@ -246,7 +246,7 @@ docker exec kafka-broker-1 kafka-topics --describe --topic twitter-topic --boots
 ### Consume Messages
 ```bash
 docker exec kafka-broker-1 kafka-console-consumer \
-  --topic twitter-topic \
+  --topic social-events \
   --from-beginning \
   --bootstrap-server localhost:9092
 ```
@@ -296,22 +296,22 @@ The GitHub notification mentioned a critical vulnerability in the default branch
 - `pom.xml` - Updated all dependencies
 - `docker-compose/kafka_cluster.yml` - Added health checks
 - `docker-compose/.env` - Added environment configuration
-- `twitter-to-kafka-service/pom.xml` - Removed Twitter4J, added Actuator
-- `twitter-to-kafka-service/src/main/resources/application.yml` - Enhanced configuration
+- `event-stream-service/pom.xml` - Removed Twitter4J, added Actuator
+- `event-stream-service/src/main/resources/application.yml` - Enhanced configuration
 
 **Added** (5 files):
 - `CHANGELOG.md` - Comprehensive change documentation
 - `QUICK_START.md` - Fast setup guide
 - `PROJECT_SUMMARY.md` - This file
 - `start-dev-environment.sh` - Automated setup script
-- `twitter-to-kafka-service/src/main/java/.../model/SocialMediaMessage.java` - Data model
-- `twitter-to-kafka-service/src/main/java/.../runner/impl/EnhancedMockStreamRunner.java` - Message generator
+- `event-stream-service/src/main/java/.../model/SocialMediaMessage.java` - Data model
+- `event-stream-service/src/main/java/.../runner/impl/EnhancedMockStreamRunner.java` - Message generator
 
 **Deleted** (4 files):
-- `twitter-to-kafka-service/.../MockKafkaStreamRunner.java` - Old implementation
-- `twitter-to-kafka-service/.../TwitterKafkaStreamRunner.java` - Twitter integration
-- `twitter-to-kafka-service/.../TwitterKafkaStatusListener.java` - Twitter listener
-- `twitter-to-kafka-service/src/main/resources/twitter4j.properties` - Credentials
+- `event-stream-service/.../MockKafkaStreamRunner.java` - Old implementation
+- `event-stream-service/.../TwitterKafkaStreamRunner.java` - Twitter integration
+- `event-stream-service/.../TwitterKafkaStatusListener.java` - Twitter listener
+- `event-stream-service/src/main/resources/twitter4j.properties` - Credentials
 
 **Net Change**: +930 lines added, -278 lines removed
 

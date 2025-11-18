@@ -39,8 +39,8 @@ import jakarta.annotation.PreDestroy;
 ```
 
 **Files Updated:**
-- ✅ `kafka/kafka-producer/src/main/java/.../TwitterKafkaProducer.java`
-- ✅ `twitter-to-kafka-service/src/main/java/.../EnhancedMockStreamRunner.java`
+- ✅ `kafka/kafka-producer/src/main/java/.../AvroKafkaProducer.java`
+- ✅ `event-stream-service/src/main/java/.../EnhancedMockStreamRunner.java`
 
 ---
 
@@ -51,15 +51,15 @@ import jakarta.annotation.PreDestroy;
 import org.springframework.util.concurrent.ListenableFuture;
 import org.springframework.util.concurrent.ListenableFutureCallback;
 
-ListenableFuture<SendResult<Long, TwitterAvroModel>> future = 
+ListenableFuture<SendResult<Long, SocialEventAvroModel>> future =
     kafkaTemplate.send(topicName, key, message);
 
 future.addCallback(new ListenableFutureCallback<>() {
     @Override
     public void onFailure(Throwable throwable) { ... }
-    
+
     @Override
-    public void onSuccess(SendResult<Long, TwitterAvroModel> result) { ... }
+    public void onSuccess(SendResult<Long, SocialEventAvroModel> result) { ... }
 });
 ```
 
@@ -67,7 +67,7 @@ future.addCallback(new ListenableFutureCallback<>() {
 ```java
 import java.util.concurrent.CompletableFuture;
 
-CompletableFuture<SendResult<Long, TwitterAvroModel>> future = 
+CompletableFuture<SendResult<Long, SocialEventAvroModel>> future =
     kafkaTemplate.send(topicName, key, message);
 
 future.whenComplete((result, throwable) -> {
@@ -80,7 +80,7 @@ future.whenComplete((result, throwable) -> {
 ```
 
 **Files Updated:**
-- ✅ `kafka/kafka-producer/src/main/java/.../TwitterKafkaProducer.java`
+- ✅ `kafka/kafka-producer/src/main/java/.../AvroKafkaProducer.java`
 
 **Benefits:**
 - Modern Java concurrent API
@@ -279,7 +279,7 @@ cd docker-compose
 docker-compose -f kafka_cluster.yml up -d
 
 # 3. Run the application
-cd ../twitter-to-kafka-service
+cd ../event-stream-service
 mvn spring-boot:run
 
 # 4. Verify health

@@ -4,8 +4,8 @@ Get up and running with the Kafka Microservices demo in 5 minutes!
 
 ## Prerequisites Checklist
 
-- [ ] Java 11 or higher installed (`java -version`)
-- [ ] Maven 3.6+ installed (`mvn -version`)
+- [ ] Java 21 (LTS) installed (`java -version`)
+- [ ] Maven 3.9+ installed (`mvn -version`)
 - [ ] Docker installed and running (`docker --version`)
 - [ ] Docker Compose installed (`docker-compose --version`)
 - [ ] At least 4GB RAM allocated to Docker
@@ -37,11 +37,11 @@ mvn clean install -DskipTests
 ### 3️⃣ Run the Application (30 seconds)
 
 ```bash
-cd twitter-to-kafka-service
+cd event-stream-service
 mvn spring-boot:run
 ```
 
-**That's it! The application is now running and generating messages.**
+**That's it! The application is now running and generating events.**
 
 ## Verify It's Working
 
@@ -67,9 +67,9 @@ Expected output:
 
 You should see messages like:
 ```
-2024-XX-XX XX:XX:XX - Starting enhanced mock data stream for keywords: [Java, Microservices, ...]
-2024-XX-XX XX:XX:XX - Generated message 1234567: Just deployed a new microservice...
-2024-XX-XX XX:XX:XX - 📊 Messages generated so far: 150 | Average rate: 60.00 msgs/min
+2024-XX-XX XX:XX:XX - Starting event stream generator for keywords: [Java, Microservices, ...]
+2024-XX-XX XX:XX:XX - Generated event 1234567: Just deployed a new microservice...
+2024-XX-XX XX:XX:XX - 📊 Events generated so far: 150 | Average rate: 60.00 events/min
 ```
 
 ### View Metrics
@@ -119,8 +119,8 @@ server:
 
 1. **Kafka Cluster**: 3 brokers running for high availability
 2. **Schema Registry**: Managing Avro schemas at http://localhost:8081
-3. **Message Generator**: Creating realistic social media messages every 1 second
-4. **Kafka Producer**: Sending Avro-serialized messages to the `twitter-topic` topic
+3. **Event Generator**: Creating realistic social media events every 1 second
+4. **Kafka Producer**: Sending Avro-serialized events to the `social-events` topic
 5. **Monitoring**: Health checks and metrics available via Spring Boot Actuator
 
 ## Next Steps
@@ -135,17 +135,17 @@ server:
 
 ## Quick Configuration Tips
 
-### Generate Messages Faster
-Edit `twitter-to-kafka-service/src/main/resources/application.yml`:
+### Generate Events Faster
+Edit `event-stream-service/src/main/resources/application.yml`:
 ```yaml
-twitter-to-kafka-service:
+event-stream-service:
   mock-sleep-ms: 500  # Generate every 500ms (2 per second)
 ```
 
 ### Add Custom Keywords
 ```yaml
-twitter-to-kafka-service:
-  twitter-keywords:
+event-stream-service:
+  event-keywords:
     - MyKeyword1
     - MyKeyword2
     - AnotherTopic
@@ -165,16 +165,16 @@ logging:
 docker exec kafka-broker-1 kafka-topics --list --bootstrap-server localhost:9092
 
 # Check topic details
-docker exec kafka-broker-1 kafka-topics --describe --topic twitter-topic --bootstrap-server localhost:9092
+docker exec kafka-broker-1 kafka-topics --describe --topic social-events --bootstrap-server localhost:9092
 
-# Consume messages from topic
-docker exec kafka-broker-1 kafka-console-consumer --topic twitter-topic --from-beginning --bootstrap-server localhost:9092
+# Consume events from topic
+docker exec kafka-broker-1 kafka-console-consumer --topic social-events --from-beginning --bootstrap-server localhost:9092
 
 # View Schema Registry schemas
 curl http://localhost:8081/subjects
 
 # Check application logs in real-time
-cd twitter-to-kafka-service && mvn spring-boot:run | grep "Generated message"
+cd event-stream-service && mvn spring-boot:run | grep "Generated event"
 ```
 
 ## Getting Help

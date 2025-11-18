@@ -1,5 +1,111 @@
 # Changelog
 
+## Version 3.1.0 - Terminology Update (Generic Event Stream)
+
+### Major Refactoring - Terminology Modernization
+
+**Release Date**: 2024
+
+This release refactors the project to use generic event stream terminology, removing all Twitter-specific naming to accurately reflect the project's purpose as a Kafka microservices learning demonstration.
+
+#### 🔄 Module & Package Changes
+
+**Module Renamed**:
+- `twitter-to-kafka-service/` → `event-stream-service/`
+
+**Package Renamed**:
+- `com.microservices.demo.twitter.to.kafka.service` → `com.microservices.demo.event.stream.service`
+
+#### 📝 Class & Interface Renames
+
+| Old Name | New Name | Type |
+|----------|----------|------|
+| `TwitterToKafkaServiceApplication` | `EventStreamServiceApplication` | Main Application |
+| `TwitterKafkaProducer` | `AvroKafkaProducer` | Kafka Producer (now generic) |
+| `TwitterToKafkaServiceConfigData` | `EventStreamConfigData` | Configuration |
+| `TwitterToKafkaServiceException` | `EventStreamServiceException` | Exception |
+| `TwitterAvroModel` | `SocialEventAvroModel` | Avro Model |
+
+#### 📄 File Changes
+
+**Avro Schema**:
+- `twitter.avsc` → `social-event.avsc`
+- Model name updated but schema fields remain compatible
+
+**Configuration Properties** (application.yml):
+- `twitter-to-kafka-service` → `event-stream-service`
+- `twitter-keywords` → `event-keywords`
+- `enable-mock-tweets` → `enable-mock-events`
+- `mock-min-tweet-length` → `mock-min-message-length`
+- `mock-max-tweet-length` → `mock-max-message-length`
+
+**Kafka Topics**:
+- `twitter-topic` → `social-events`
+
+#### ✨ Improvements
+
+1. **Generic Kafka Producer**: New `AvroKafkaProducer<K, V>` supports any Avro model using Java generics
+2. **Accurate Terminology**: All naming reflects actual functionality (event streaming, not Twitter)
+3. **Better Documentation**: Added `TERMINOLOGY_UPDATE.md` with complete migration guide
+4. **Clear Logs**: Updated log messages to reference "events" instead of "tweets"
+
+#### ⚠️ Breaking Changes
+
+This is a **major version** update with breaking changes:
+
+- ⚠️ Module name changed (affects Maven builds)
+- ⚠️ Package names changed (requires import updates)
+- ⚠️ Configuration keys changed (application.yml must be updated)
+- ⚠️ Kafka topic name changed
+- ⚠️ Avro model class name changed
+
+#### ✅ Backward Compatibility
+
+Compatible aspects:
+- ✅ Avro schema structure (same fields: userId, id, text, createdAt)
+- ✅ Data format (existing Avro data remains readable)
+- ✅ Kafka cluster configuration
+- ✅ Docker Compose setup
+- ✅ Spring Boot version
+- ✅ All features and functionality
+
+#### 📖 Migration Guide
+
+See `TERMINOLOGY_UPDATE.md` for detailed migration instructions.
+
+**Quick Config Update**:
+```yaml
+# Old
+twitter-to-kafka-service:
+  twitter-keywords: [Java]
+  enable-mock-tweets: true
+
+# New
+event-stream-service:
+  event-keywords: [Java]
+  enable-mock-events: true
+```
+
+**Quick Path Update**:
+```bash
+# Old
+cd twitter-to-kafka-service && mvn spring-boot:run
+
+# New
+cd event-stream-service && mvn spring-boot:run
+```
+
+#### 🎯 Rationale
+
+This update makes the project:
+1. **More Accurate** - Names match actual functionality (no Twitter integration)
+2. **More Professional** - Industry-standard, generic terminology
+3. **More Maintainable** - Self-documenting, clear code
+4. **More Flexible** - Easy to extend to other event types
+5. **Better for Learning** - Focuses on Kafka patterns, not Twitter specifics
+
+---
+
 ## Version 3.0.0 - Java 21 & Spring Boot 3.2 Upgrade
 
 ### Major Technology Stack Upgrade
