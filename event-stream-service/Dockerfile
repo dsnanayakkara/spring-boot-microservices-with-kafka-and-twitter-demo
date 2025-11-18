@@ -7,6 +7,7 @@ WORKDIR /app
 COPY pom.xml .
 COPY app-config-data ./app-config-data
 COPY common-config ./common-config
+COPY kafka/pom.xml ./kafka/pom.xml
 COPY kafka/kafka-model ./kafka/kafka-model
 COPY kafka/kafka-admin ./kafka/kafka-admin
 COPY kafka/kafka-producer ./kafka/kafka-producer

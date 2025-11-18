@@ -7,6 +7,7 @@ WORKDIR /app
 COPY pom.xml .
 COPY app-config-data ./app-config-data
 COPY common-config ./common-config
+COPY elastic/pom.xml ./elastic/pom.xml
 COPY elastic/elastic-model ./elastic/elastic-model
 COPY elastic/elastic-config ./elastic/elastic-config
 COPY elastic/elastic-query-client ./elastic/elastic-query-client
