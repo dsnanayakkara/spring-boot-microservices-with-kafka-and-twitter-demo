@@ -6,11 +6,13 @@ A Spring Boot microservices demonstration project showcasing event-driven archit
 
 This project demonstrates a production-ready microservices architecture for processing streaming data at high throughput using:
 
-- **Spring Boot 2.7.18** - Modern Java application framework
+- **Java 21** - Latest LTS version with modern language features
+- **Spring Boot 3.2.5** - Latest generation Spring framework
+- **Spring Framework 6.1.x** - Core framework with Jakarta EE 10
 - **Apache Kafka** - Distributed event streaming platform
+- **Spring Kafka 3.1.x** - Latest Kafka integration
 - **Apache Avro** - Efficient data serialization
-- **Confluent Schema Registry** - Schema management for Avro
-- **Spring Retry** - Resilient error handling
+- **Confluent Platform 7.6.0** - Schema Registry and Kafka tools
 - **Spring Boot Actuator** - Production-ready monitoring and health checks
 
 ### What Changed from Original Twitter Integration
@@ -40,8 +42,8 @@ This project originally integrated with Twitter's streaming API, but due to Twit
 
 ### Prerequisites
 
-- **Java 11** or higher
-- **Maven 3.6+**
+- **Java 21** (LTS) - [Download here](https://adoptium.net/)
+- **Maven 3.9+**
 - **Docker** and **Docker Compose**
 - At least **4GB RAM** for Docker
 
