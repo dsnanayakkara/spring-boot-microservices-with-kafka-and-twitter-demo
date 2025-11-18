@@ -7,18 +7,9 @@
 		<module>kafka-consumer-service</module>
 		<module>kafka-streams-service</module>
 		<module>elasticsearch-service</module>
-		<module>elastic/elastic-query-service</module>
 		<module>app-config-data</module>
 		<module>kafka</module>
-		<module>kafka/kafka-model</module>
-		<module>kafka/kafka-admin</module>
-		<module>kafka/kafka-producer</module>
-		<module>kafka/kafka-consumer</module>
 		<module>elastic</module>
-		<module>elastic/elastic-model</module>
-		<module>elastic/elastic-config</module>
-		<module>elastic/elastic-index-client</module>
-		<module>elastic/elastic-query-client</module>
 		<module>common-config</module>
 		<module>common-security</module>
 	</modules>

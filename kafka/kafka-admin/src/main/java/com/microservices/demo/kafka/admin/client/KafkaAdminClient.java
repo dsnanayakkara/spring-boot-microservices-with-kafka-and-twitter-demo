@@ -95,7 +95,7 @@ public class KafkaAdminClient {
                     .uri(kafkaConfigData.getSchemaRegistryUrl())
                     .retrieve()
                     .toBodilessEntity()
-                    .map(response -> response.getStatusCode())
+                    .map(response -> HttpStatus.valueOf(response.getStatusCode().value()))
                     .block();
         } catch (Exception e) {
             return HttpStatus.SERVICE_UNAVAILABLE;
