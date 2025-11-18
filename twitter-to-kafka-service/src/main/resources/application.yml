@@ -4,11 +4,15 @@ twitter-to-kafka-service:
     - Microservices
     - Kafka
     - Elasticsearch
-  welcome-message: Hello microservices!
+    - SpringBoot
+    - Docker
+    - Kubernetes
+  welcome-message: High-Throughput Kafka Microservices Demo
   enable-mock-tweets: true
   mock-min-tweet-length: 5
   mock-max-tweet-length: 15
-  mock-sleep-ms: 10000
+  mock-sleep-ms: 1000  # Generate messages every 1 second for higher throughput
+  topic-name: twitter-topic
 
 retry-config:
   initial-interval-ms: 1000
@@ -37,3 +41,39 @@ kafka-producer-config:
   linger-ms: 5
   request-timeout-ms: 60000
   retry-count: 5
+
+# Spring Boot Actuator Configuration for Monitoring
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus,env,loggers
+      base-path: /actuator
+  endpoint:
+    health:
+      show-details: always
+      probes:
+        enabled: true
+  health:
+    kafka:
+      enabled: true
+  metrics:
+    export:
+      prometheus:
+        enabled: true
+
+# Server Configuration
+server:
+  port: 8080
+  shutdown: graceful
+
+# Logging Configuration
+logging:
+  level:
+    root: INFO
+    com.microservices.demo: INFO
+    org.apache.kafka: WARN
+    org.springframework.kafka: INFO
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss} - %msg%n"
+    file: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
