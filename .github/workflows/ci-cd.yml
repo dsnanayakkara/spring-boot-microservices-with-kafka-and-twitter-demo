@@ -33,9 +33,6 @@ jobs:
       - name: Build Docker images
         run: |
           docker build -f ./event-stream-service/Dockerfile -t social-events/event-stream-service:latest .
-          docker build -f ./kafka-consumer-service/Dockerfile -t social-events/kafka-consumer-service:latest .
-          docker build -f ./kafka-streams-service/Dockerfile -t social-events/kafka-streams-service:latest .
-          docker build -f ./elasticsearch-service/Dockerfile -t social-events/elasticsearch-service:latest .
           docker build -f ./elastic/elastic-query-service/Dockerfile -t social-events/elastic-query-service:latest .
 
       - name: Save Docker images
