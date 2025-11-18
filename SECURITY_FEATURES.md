@@ -695,32 +695,44 @@ public class ElasticsearchConfig extends ElasticsearchConfiguration {
 
     @Override
     public ClientConfiguration clientConfiguration() {
-        ClientConfiguration.MaybeSecureClientConfigurationBuilder builder =
-                ClientConfiguration.builder()
-                        .connectedTo(elasticConfigData.getConnectionUrl())
-                        .withConnectTimeout(Duration.ofMillis(elasticConfigData.getConnectionTimeoutMs()))
-                        .withSocketTimeout(Duration.ofMillis(elasticConfigData.getSocketTimeoutMs()));
-
-        // Build configuration based on auth and SSL settings
-        // IMPORTANT: SSL must be configured BEFORE authentication in the builder chain
+        // Check if authentication is configured
         boolean hasAuth = elasticsearchUsername != null && !elasticsearchUsername.isEmpty();
+
+        // Build configuration in one chain without intermediate variables
+        // IMPORTANT: SSL must be configured BEFORE authentication in the builder chain
 
         if (hasAuth && useSsl) {
             // Both SSL and auth (SSL first, then auth)
-            return builder.usingSsl()
+            return ClientConfiguration.builder()
+                    .connectedTo(elasticConfigData.getConnectionUrl())
+                    .withConnectTimeout(Duration.ofMillis(elasticConfigData.getConnectionTimeoutMs()))
+                    .withSocketTimeout(Duration.ofMillis(elasticConfigData.getSocketTimeoutMs()))
+                    .usingSsl()
                     .withBasicAuth(elasticsearchUsername, elasticsearchPassword)
                     .build();
         } else if (hasAuth) {
             // Auth only
-            return builder.withBasicAuth(elasticsearchUsername, elasticsearchPassword)
+            return ClientConfiguration.builder()
+                    .connectedTo(elasticConfigData.getConnectionUrl())
+                    .withConnectTimeout(Duration.ofMillis(elasticConfigData.getConnectionTimeoutMs()))
+                    .withSocketTimeout(Duration.ofMillis(elasticConfigData.getSocketTimeoutMs()))
+                    .withBasicAuth(elasticsearchUsername, elasticsearchPassword)
                     .build();
         } else if (useSsl) {
             // SSL only
-            return builder.usingSsl()
+            return ClientConfiguration.builder()
+                    .connectedTo(elasticConfigData.getConnectionUrl())
+                    .withConnectTimeout(Duration.ofMillis(elasticConfigData.getConnectionTimeoutMs()))
+                    .withSocketTimeout(Duration.ofMillis(elasticConfigData.getSocketTimeoutMs()))
+                    .usingSsl()
                     .build();
         } else {
             // No auth, no SSL
-            return builder.build();
+            return ClientConfiguration.builder()
+                    .connectedTo(elasticConfigData.getConnectionUrl())
+                    .withConnectTimeout(Duration.ofMillis(elasticConfigData.getConnectionTimeoutMs()))
+                    .withSocketTimeout(Duration.ofMillis(elasticConfigData.getSocketTimeoutMs()))
+                    .build();
         }
     }
 }
