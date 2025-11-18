@@ -4,11 +4,13 @@
 	<modelVersion>4.0.0</modelVersion>
 	<modules>
 		<module>event-stream-service</module>
+		<module>kafka-consumer-service</module>
 		<module>app-config-data</module>
 		<module>kafka</module>
 		<module>kafka/kafka-model</module>
 		<module>kafka/kafka-admin</module>
 		<module>kafka/kafka-producer</module>
+		<module>kafka/kafka-consumer</module>
 		<module>common-config</module>
 	</modules>
 	<parent>
@@ -69,6 +71,11 @@
 			<dependency>
 				<groupId>com.microservices.demo</groupId>
 				<artifactId>kafka-producer</artifactId>
+				<version>${project.version}</version>
+			</dependency>
+			<dependency>
+				<groupId>com.microservices.demo</groupId>
+				<artifactId>kafka-consumer</artifactId>
 				<version>${project.version}</version>
 			</dependency>
 
