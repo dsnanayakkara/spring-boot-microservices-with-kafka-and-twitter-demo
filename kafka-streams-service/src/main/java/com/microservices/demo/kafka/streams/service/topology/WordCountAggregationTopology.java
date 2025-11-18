@@ -5,9 +5,11 @@ import com.microservices.demo.kafka.avro.model.SocialEventAvroModel;
 import io.confluent.kafka.streams.serdes.avro.SpecificAvroSerde;
 import org.apache.kafka.common.serialization.Serdes;
 import org.apache.kafka.common.utils.Bytes;
+import org.apache.kafka.streams.KeyValue;
 import org.apache.kafka.streams.StreamsBuilder;
 import org.apache.kafka.streams.kstream.*;
 import org.apache.kafka.streams.state.KeyValueStore;
+import org.apache.kafka.streams.state.WindowStore;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -57,7 +59,7 @@ public class WordCountAggregationTopology {
                 .filter((key, word) -> word.length() > 3) // Filter out short words
                 .groupBy((key, word) -> word, Grouped.with(Serdes.String(), Serdes.String()))
                 .windowedBy(TimeWindows.ofSizeWithNoGrace(Duration.ofMinutes(5)))
-                .count(Materialized.<String, Long, KeyValueStore<Bytes, byte[]>>as("word-counts-store")
+                .count(Materialized.<String, Long, WindowStore<Bytes, byte[]>>as("word-counts-store")
                         .withKeySerde(Serdes.String())
                         .withValueSerde(Serdes.Long()));
 
@@ -81,7 +83,7 @@ public class WordCountAggregationTopology {
 
         // User event count aggregation (session-based grouping)
         KTable<Long, Long> userEventCounts = socialEventsStream
-                .filter((key, value) -> value.getUserId() != null)
+                .filter((key, value) -> value.getUserId() > 0)
                 .groupByKey(Grouped.with(Serdes.Long(), eventSerde))
                 .count(Materialized.<Long, Long, KeyValueStore<Bytes, byte[]>>as("user-event-counts-store")
                         .withKeySerde(Serdes.Long())
