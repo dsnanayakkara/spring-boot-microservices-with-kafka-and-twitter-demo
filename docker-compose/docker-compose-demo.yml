@@ -146,12 +146,20 @@ services:
       - KAFKA_REPLICATION_FACTOR=1
       - EVENT_STREAM_MOCK_ENABLED=true
       - EVENT_STREAM_MOCK_SLEEP_MS=1000
+      - JAVA_OPTS=-XX:+UseContainerSupport -XX:MaxRAMPercentage=75.0
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8080/actuator/health"]
       interval: 30s
       timeout: 5s
       retries: 3
-      start_period: 60s
+      start_period: 120s
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 512M
+        reservations:
+          memory: 256M
     networks:
       - social-events-network
 
@@ -175,12 +183,98 @@ services:
       - ELASTICSEARCH_HOST=elasticsearch
       - ELASTICSEARCH_PORT=9200
       - ELASTICSEARCH_INDEX_NAME=social-events-index
+      - JAVA_OPTS=-XX:+UseContainerSupport -XX:MaxRAMPercentage=75.0
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8083/actuator/health"]
       interval: 30s
       timeout: 5s
       retries: 3
-      start_period: 90s
+      start_period: 120s
+    deploy:
+      resources:
+        limits:
+          cpus: '0.3'
+          memory: 256M
+        reservations:
+          memory: 128M
+    networks:
+      - social-events-network
+
+  # Kafka Consumer Service
+  kafka-consumer-service:
+    build:
+      context: ..
+      dockerfile: kafka-consumer-service/Dockerfile
+    container_name: kafka-consumer-service
+    depends_on:
+      kafka-broker:
+        condition: service_healthy
+      schema-registry:
+        condition: service_healthy
+      elasticsearch:
+        condition: service_healthy
+    ports:
+      - "18081:8081"  # External port 18081 to avoid conflict with schema-registry
+    environment:
+      - SPRING_PROFILES_ACTIVE=docker
+      - KAFKA_BOOTSTRAP_SERVERS=kafka-broker:9092
+      - SCHEMA_REGISTRY_URL=http://schema-registry:8081
+      - ELASTICSEARCH_HOST=elasticsearch
+      - ELASTICSEARCH_PORT=9200
+      - ELASTICSEARCH_INDEX_NAME=social-events-index
+      - JAVA_OPTS=-XX:+UseContainerSupport -XX:MaxRAMPercentage=75.0
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8081/actuator/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 120s
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 512M
+        reservations:
+          memory: 256M
+    networks:
+      - social-events-network
+
+  # Kafka Streams Service
+  kafka-streams-service:
+    build:
+      context: ..
+      dockerfile: kafka-streams-service/Dockerfile
+    container_name: kafka-streams-service
+    depends_on:
+      kafka-broker:
+        condition: service_healthy
+      schema-registry:
+        condition: service_healthy
+    ports:
+      - "8082:8082"
+    environment:
+      - SPRING_PROFILES_ACTIVE=docker
+      - KAFKA_BOOTSTRAP_SERVERS=kafka-broker:9092
+      - SCHEMA_REGISTRY_URL=http://schema-registry:8081
+      - KAFKA_STREAMS_STATE_DIR=/tmp/kafka-streams
+      - KAFKA_STREAMS_INPUT_TOPIC=social-events
+      - KAFKA_STREAMS_WORD_COUNT_TOPIC=word-count-events
+      - JAVA_OPTS=-XX:+UseContainerSupport -XX:MaxRAMPercentage=75.0
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8082/actuator/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 120s
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 1G
+        reservations:
+          memory: 512M
+    volumes:
+      - kafka-streams-state:/tmp/kafka-streams
     networks:
       - social-events-network
 
@@ -200,12 +294,20 @@ services:
       - ELASTICSEARCH_HOST=elasticsearch
       - ELASTICSEARCH_PORT=9200
       - ELASTICSEARCH_INDEX_NAME=social-events-index
+      - JAVA_OPTS=-XX:+UseContainerSupport -XX:MaxRAMPercentage=75.0
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8084/actuator/health"]
       interval: 30s
       timeout: 5s
       retries: 3
-      start_period: 60s
+      start_period: 120s
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 512M
+        reservations:
+          memory: 256M
     networks:
       - social-events-network
 
@@ -237,3 +339,5 @@ volumes:
   zookeeper-data:
   kafka-data:
   elasticsearch-data:
+  schema-registry-data:
+  kafka-streams-state:
