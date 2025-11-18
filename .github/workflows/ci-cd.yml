@@ -1,0 +1,140 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches: [ main, claude/dev-server-ready-* ]
+  pull_request:
+    branches: [ main ]
+
+env:
+  JAVA_VERSION: '21'
+  NODE_VERSION: '18'
+
+jobs:
+  # Build and test backend services
+  build-backend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          java-version: ${{ env.JAVA_VERSION }}
+          distribution: 'temurin'
+          cache: maven
+
+      - name: Build with Maven
+        run: mvn clean install -DskipTests
+
+      - name: Run tests
+        run: mvn test
+
+      - name: Build Docker images
+        run: |
+          docker build -t social-events/event-stream-service:latest ./event-stream-service
+          docker build -t social-events/kafka-consumer-service:latest ./kafka-consumer-service
+          docker build -t social-events/kafka-streams-service:latest ./kafka-streams-service
+          docker build -t social-events/elasticsearch-service:latest ./elasticsearch-service
+          docker build -t social-events/elastic-query-service:latest ./elastic/elastic-query-service
+
+      - name: Save Docker images
+        run: |
+          docker save social-events/event-stream-service:latest | gzip > event-stream-service.tar.gz
+          docker save social-events/elastic-query-service:latest | gzip > elastic-query-service.tar.gz
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-images
+          path: |
+            *.tar.gz
+          retention-days: 1
+
+  # Build frontend dashboard
+  build-frontend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: dashboard-ui/package-lock.json
+
+      - name: Install dependencies
+        working-directory: dashboard-ui
+        run: npm ci
+
+      - name: Build dashboard
+        working-directory: dashboard-ui
+        env:
+          VITE_API_BASE_URL: ${{ secrets.API_BASE_URL || 'http://localhost:8084' }}
+        run: npm run build
+
+      - name: Upload dashboard artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: dashboard-dist
+          path: dashboard-ui/dist
+          retention-days: 7
+
+  # Deploy to GitHub Pages (Dashboard only)
+  deploy-dashboard-pages:
+    needs: build-frontend
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    steps:
+      - name: Download dashboard artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: dashboard-dist
+          path: dist
+
+      - name: Setup Pages
+        uses: actions/configure-pages@v4
+
+      - name: Upload to Pages
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
+
+  # Build and push to Docker Hub (optional - requires secrets)
+  push-to-dockerhub:
+    needs: [build-backend, build-frontend]
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Log in to Docker Hub
+        if: ${{ secrets.DOCKERHUB_USERNAME != '' }}
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Download backend images
+        uses: actions/download-artifact@v4
+        with:
+          name: backend-images
+
+      - name: Load and push images
+        if: ${{ secrets.DOCKERHUB_USERNAME != '' }}
+        run: |
+          docker load < event-stream-service.tar.gz
+          docker load < elastic-query-service.tar.gz
+          docker tag social-events/event-stream-service:latest ${{ secrets.DOCKERHUB_USERNAME }}/event-stream-service:latest
+          docker tag social-events/elastic-query-service:latest ${{ secrets.DOCKERHUB_USERNAME }}/elastic-query-service:latest
+          docker push ${{ secrets.DOCKERHUB_USERNAME }}/event-stream-service:latest
+          docker push ${{ secrets.DOCKERHUB_USERNAME }}/elastic-query-service:latest

@@ -89,9 +89,37 @@ This project originally integrated with Twitter's streaming API, but due to Twit
 - **Docker** and **Docker Compose**
 - At least **8GB RAM** for Docker (for all services)
 
-### Option 1: Automated Startup (Recommended)
+### Option 1: Quick Demo Deployment (Docker Compose) ⚡
 
-Use the unified startup script to launch the entire stack:
+**One-command deployment** using Docker Compose:
+
+```bash
+./deploy-demo.sh
+```
+
+This automated script will:
+1. Check prerequisites (Docker, Docker Compose)
+2. Build all backend services
+3. Build frontend dashboard
+4. Start complete stack with Docker Compose
+5. Wait for all services to be healthy
+6. Display access URLs
+
+**Access the demo:**
+- Dashboard: http://localhost:3000
+- REST API: http://localhost:8084
+- Swagger UI: http://localhost:8084/swagger-ui.html
+- Kibana: http://localhost:5601
+
+**To stop:**
+```bash
+cd docker-compose
+docker-compose -f docker-compose-demo.yml down
+```
+
+### Option 2: Development Mode (Local Services)
+
+Use the unified startup script to launch services natively:
 
 ```bash
 ./start-all-services.sh
@@ -108,7 +136,7 @@ This script will:
 ./stop-all-services.sh
 ```
 
-### Option 2: Manual Startup
+### Option 3: Manual Startup
 
 #### Step 1: Start Infrastructure
 
@@ -243,6 +271,69 @@ http://localhost:3000
 - **Responsive Design** - Works on desktop, tablet, and mobile
 
 See [dashboard-ui/README.md](dashboard-ui/README.md) for more details.
+
+## ☁️ Cloud Deployment for Demo
+
+Deploy this project for free using various cloud platforms! See [DEPLOYMENT.md](DEPLOYMENT.md) for comprehensive guides.
+
+### Quick Deployment Options:
+
+#### 1. **GitHub Pages + External Services** (Recommended)
+- **Dashboard**: GitHub Pages (free)
+- **API**: Railway.app ($5/month credit)
+- **Kafka**: Upstash (free tier)
+- **Elasticsearch**: Bonsai (free tier)
+- **Setup time**: ~30 minutes
+
+```bash
+# Enable GitHub Actions in your repository
+# Push to main branch - dashboard auto-deploys to GitHub Pages
+# Set up Railway.app and external services (see DEPLOYMENT.md)
+```
+
+#### 2. **Oracle Cloud Always Free Tier** ⭐ (Best for Full Stack)
+- **Complete stack**: All services + infrastructure
+- **Cost**: **FREE FOREVER** (not a trial!)
+- **Resources**: 4 ARM cores + 24GB RAM or 2 AMD VMs
+- **Setup time**: ~2-3 hours
+
+```bash
+# SSH into Oracle Cloud VM
+git clone <your-repo>
+cd <repo-name>
+./deploy-demo.sh
+```
+
+#### 3. **Railway.app** (Easiest)
+- **Services**: 2-3 microservices
+- **Cost**: $5/month credit (effectively free)
+- **Setup time**: ~15 minutes
+
+```bash
+npm install -g @railway/cli
+railway login
+railway init
+railway up
+```
+
+### CI/CD with GitHub Actions
+
+Automated build and deployment pipeline included:
+- ✅ Builds on every push
+- ✅ Runs tests
+- ✅ Deploys dashboard to GitHub Pages
+- ✅ Creates Docker images
+- ✅ Supports custom deployment targets
+
+Configure secrets in GitHub repository:
+```
+Settings → Secrets → Actions
+- DOCKERHUB_USERNAME (optional)
+- DOCKERHUB_TOKEN (optional)
+- API_BASE_URL (for dashboard)
+```
+
+**See [DEPLOYMENT.md](DEPLOYMENT.md) for detailed setup instructions for all platforms.**
 
 ## 📊 Message Generation
 
