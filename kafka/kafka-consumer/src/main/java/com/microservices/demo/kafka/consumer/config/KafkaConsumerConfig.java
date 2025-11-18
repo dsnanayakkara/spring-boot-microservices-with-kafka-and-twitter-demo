@@ -4,6 +4,7 @@ import com.microservices.demo.config.KafkaConfigData;
 import com.microservices.demo.config.KafkaConsumerConfigData;
 import org.apache.avro.specific.SpecificRecordBase;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.kafka.annotation.EnableKafka;
@@ -23,6 +24,12 @@ public class KafkaConsumerConfig<K extends Serializable, V extends SpecificRecor
 
     private final KafkaConfigData kafkaConfigData;
     private final KafkaConsumerConfigData kafkaConsumerConfigData;
+
+    @Value("${schema-registry.auth.username:}")
+    private String schemaRegistryUsername;
+
+    @Value("${schema-registry.auth.password:}")
+    private String schemaRegistryPassword;
 
     public KafkaConsumerConfig(KafkaConfigData configData, KafkaConsumerConfigData consumerConfigData) {
         this.kafkaConfigData = configData;
@@ -46,6 +53,13 @@ public class KafkaConsumerConfig<K extends Serializable, V extends SpecificRecor
                 kafkaConsumerConfigData.getMaxPartitionFetchBytesDefault() *
                         kafkaConsumerConfigData.getMaxPartitionFetchBytesBoostFactor());
         props.put(ConsumerConfig.MAX_POLL_RECORDS_CONFIG, kafkaConsumerConfigData.getMaxPollRecords());
+
+        // Add Schema Registry authentication if credentials are provided
+        if (schemaRegistryUsername != null && !schemaRegistryUsername.isEmpty()) {
+            props.put("basic.auth.credentials.source", "USER_INFO");
+            props.put("basic.auth.user.info", schemaRegistryUsername + ":" + schemaRegistryPassword);
+        }
+
         return props;
     }
 
