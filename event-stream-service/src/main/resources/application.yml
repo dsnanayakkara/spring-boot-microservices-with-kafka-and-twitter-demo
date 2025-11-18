@@ -1,0 +1,79 @@
+event-stream-service:
+  event-keywords:
+    - Java
+    - Microservices
+    - Kafka
+    - Elasticsearch
+    - SpringBoot
+    - Docker
+    - Kubernetes
+  welcome-message: High-Throughput Kafka Event Stream Demo
+  enable-mock-events: true
+  mock-min-message-length: 5
+  mock-max-message-length: 15
+  mock-sleep-ms: 1000  # Generate events every 1 second for higher throughput
+  topic-name: social-events
+
+retry-config:
+  initial-interval-ms: 1000
+  max-interval-ms: 10000
+  multiplier: 2.0
+  maxAttempts: 3
+  sleep-time-ms: 2000
+
+kafka-config:
+  bootstrap-servers: localhost:19092, localhost:29092, localhost:39092
+  schema-registry-url-key: schema.registry.url
+  schema-registry-url: http://localhost:8081
+  topic-name: social-events
+  topic-names-to-create:
+    - social-events
+  num-of-partitions: 3
+  replication-factor: 3
+
+kafka-producer-config:
+  key-serializer-class: org.apache.kafka.common.serialization.LongSerializer
+  value-serializer-class: io.confluent.kafka.serializers.KafkaAvroSerializer
+  compression-type: snappy
+  acks: all
+  batch-size: 16384
+  batch-size-boost-factor: 100
+  linger-ms: 5
+  request-timeout-ms: 60000
+  retry-count: 5
+
+# Spring Boot Actuator Configuration for Monitoring
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus,env,loggers
+      base-path: /actuator
+  endpoint:
+    health:
+      show-details: always
+      probes:
+        enabled: true
+  health:
+    kafka:
+      enabled: true
+  metrics:
+    export:
+      prometheus:
+        enabled: true
+
+# Server Configuration
+server:
+  port: 8080
+  shutdown: graceful
+
+# Logging Configuration
+logging:
+  level:
+    root: INFO
+    com.microservices.demo: INFO
+    org.apache.kafka: WARN
+    org.springframework.kafka: INFO
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss} - %msg%n"
+    file: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"

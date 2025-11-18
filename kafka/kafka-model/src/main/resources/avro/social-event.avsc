@@ -1,0 +1,11 @@
+{"namespace": "com.microservices.demo.kafka.avro.model",
+  "type": "record",
+  "name": "SocialEventAvroModel",
+  "doc": "Avro model for social media-like events in the event stream",
+  "fields": [
+    {"name": "userId", "type": "long", "doc": "User ID who created the event"},
+    {"name": "id", "type": "long", "doc": "Unique event ID"},
+    {"name": "text", "type": ["null", "string"], "doc": "Event message text content"},
+    {"name": "createdAt", "type": ["null", "long"], "logicalType": ["null", "date"], "doc": "Event creation timestamp"}
+  ]
+}
