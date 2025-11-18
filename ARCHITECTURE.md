@@ -257,23 +257,62 @@ Structured logging with:
 - Error tracking
 - Batch processing metrics
 
+## Security & Resilience (NEW in v3.4.0)
+
+### JWT Authentication & Authorization
+- Stateless JWT-based authentication
+- Bearer token support
+- 24-hour token expiration (configurable)
+- Protected REST API endpoints
+- Implementation: `common-security` module
+
+### Rate Limiting (Bucket4j)
+- 100 requests/minute per IP
+- Token bucket algorithm
+- HTTP 429 responses
+- X-Rate-Limit headers
+- Configurable per-endpoint limits
+
+### Dead Letter Queues (Kafka)
+- Failed message handling
+- Automatic retry with exponential backoff
+- DLQ topic: `social-events.DLQ`
+- Message reprocessing capabilities
+- No message loss
+
+### Circuit Breakers (Resilience4j)
+- Prevents cascading failures
+- CLOSED → OPEN → HALF_OPEN states
+- Fallback methods
+- Health monitoring
+- Elasticsearch and Kafka protection
+
+**See SECURITY_FEATURES.md for complete documentation.**
+
 ## Future Enhancements
 
-### Phase 5: Dashboard UI (Marked for Future)
-- React 18 + Vite application
-- Real-time event visualization
-- Charts and analytics (Recharts)
-- Auto-refresh from REST API
-- User-friendly interface
+### Performance Optimization
+- Caching layer (Redis) for query optimization
+- Message compression for bandwidth reduction
+- Elasticsearch query caching
 
-### Additional Improvements
-- Authentication & Authorization (OAuth 2.0)
-- Rate limiting
-- Caching layer (Redis)
-- Message encryption
-- Dead letter queues
-- Circuit breakers
+### Security Enhancements
+- Message encryption for sensitive data
+- OAuth 2.0 integration with external providers
+- API key management for service-to-service calls
+- Comprehensive audit logging
+
+### Observability
 - Distributed tracing (OpenTelemetry)
+- Centralized logging (ELK Stack)
+- Grafana dashboards
+- Prometheus Alertmanager
+
+### Scalability
+- Kubernetes manifests
+- Horizontal Pod Autoscaling
+- Service Mesh (Istio)
+- Blue-Green deployments
 
 ## Performance Characteristics
 
