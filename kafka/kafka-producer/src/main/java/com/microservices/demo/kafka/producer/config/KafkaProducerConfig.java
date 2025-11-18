@@ -4,6 +4,7 @@ import com.microservices.demo.config.KafkaConfigData;
 import com.microservices.demo.config.KafkaProducerConfigData;
 import org.apache.avro.specific.SpecificRecordBase;
 import org.apache.kafka.clients.producer.ProducerConfig;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.kafka.core.DefaultKafkaProducerFactory;
@@ -20,6 +21,12 @@ public class KafkaProducerConfig<K extends Serializable, V extends SpecificRecor
     private final KafkaConfigData kafkaConfigData;
 
     private final KafkaProducerConfigData kafkaProducerConfigData;
+
+    @Value("${schema-registry.auth.username:}")
+    private String schemaRegistryUsername;
+
+    @Value("${schema-registry.auth.password:}")
+    private String schemaRegistryPassword;
 
     public KafkaProducerConfig(KafkaConfigData configData, KafkaProducerConfigData producerConfigData) {
         this.kafkaConfigData = configData;
@@ -40,6 +47,13 @@ public class KafkaProducerConfig<K extends Serializable, V extends SpecificRecor
         props.put(ProducerConfig.ACKS_CONFIG, kafkaProducerConfigData.getAcks());
         props.put(ProducerConfig.REQUEST_TIMEOUT_MS_CONFIG, kafkaProducerConfigData.getRequestTimeoutMs());
         props.put(ProducerConfig.RETRIES_CONFIG, kafkaProducerConfigData.getRetryCount());
+
+        // Add Schema Registry authentication if credentials are provided
+        if (schemaRegistryUsername != null && !schemaRegistryUsername.isEmpty()) {
+            props.put("basic.auth.credentials.source", "USER_INFO");
+            props.put("basic.auth.user.info", schemaRegistryUsername + ":" + schemaRegistryPassword);
+        }
+
         return props;
     }
 
