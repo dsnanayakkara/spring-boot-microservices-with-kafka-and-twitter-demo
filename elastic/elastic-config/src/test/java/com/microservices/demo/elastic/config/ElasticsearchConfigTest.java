@@ -23,8 +23,8 @@ class ElasticsearchConfigTest {
     void setUp() {
         elasticConfigData = new ElasticConfigData();
         elasticConfigData.setConnectionUrl("localhost:9200");
-        elasticConfigData.setConnectionTimeoutMs(5000L);
-        elasticConfigData.setSocketTimeoutMs(30000L);
+        elasticConfigData.setConnectionTimeoutMs(5000);
+        elasticConfigData.setSocketTimeoutMs(30000);
 
         elasticsearchConfig = new ElasticsearchConfig(elasticConfigData);
     }
@@ -126,8 +126,8 @@ class ElasticsearchConfigTest {
     @DisplayName("Should use configured timeout values")
     void shouldUseConfiguredTimeouts() {
         // Given
-        elasticConfigData.setConnectionTimeoutMs(10000L);
-        elasticConfigData.setSocketTimeoutMs(60000L);
+        elasticConfigData.setConnectionTimeoutMs(10000);
+        elasticConfigData.setSocketTimeoutMs(60000);
         ReflectionTestUtils.setField(elasticsearchConfig, "elasticsearchUsername", "");
         ReflectionTestUtils.setField(elasticsearchConfig, "elasticsearchPassword", "");
         ReflectionTestUtils.setField(elasticsearchConfig, "useSsl", false);
