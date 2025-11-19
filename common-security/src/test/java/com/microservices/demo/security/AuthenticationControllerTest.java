@@ -99,7 +99,8 @@ class AuthenticationControllerTest {
         assertEquals("Invalid credentials", body.get("error"));
 
         verify(userDetailsService, times(1)).loadUserByUsername("invaliduser");
-        verify(jwtUtil, never()).generateToken(any());
+        verify(jwtUtil, never()).generateToken(any(UserDetails.class));
+        verify(jwtUtil, never()).generateToken(anyString());
     }
 
     @Test
