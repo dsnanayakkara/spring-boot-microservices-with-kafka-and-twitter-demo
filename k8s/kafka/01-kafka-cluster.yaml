@@ -1,0 +1,206 @@
+apiVersion: kafka.strimzi.io/v1beta2
+kind: Kafka
+metadata:
+  name: social-events-cluster
+  namespace: kafka
+spec:
+  kafka:
+    version: 3.6.0
+    replicas: 3
+
+    # Listeners for client connections
+    listeners:
+      # Internal plaintext (for dev/testing only - disable in production)
+      - name: plain
+        port: 9092
+        type: internal
+        tls: false
+
+      # Internal TLS with authentication (recommended for production)
+      - name: tls
+        port: 9093
+        type: internal
+        tls: true
+        authentication:
+          type: scram-sha-512
+
+      # External access via LoadBalancer (optional - for external clients)
+      - name: external
+        port: 9094
+        type: loadbalancer
+        tls: true
+        authentication:
+          type: scram-sha-512
+
+    # Resource configuration - adjust based on your workload
+    resources:
+      requests:
+        memory: 8Gi
+        cpu: "2"
+      limits:
+        memory: 16Gi
+        cpu: "4"
+
+    # JVM heap settings - set to 50-75% of container memory
+    jvmOptions:
+      -Xms: 6144m
+      -Xmx: 6144m
+
+    # Persistent storage configuration
+    storage:
+      type: jbod
+      volumes:
+      - id: 0
+        type: persistent-claim
+        size: 500Gi
+        class: standard  # Change to your storage class (e.g., fast-ssd, gp3)
+        deleteClaim: false  # Keep data when cluster is deleted
+
+    # Kafka broker configuration
+    config:
+      # Replication settings
+      offsets.topic.replication.factor: 3
+      transaction.state.log.replication.factor: 3
+      transaction.state.log.min.isr: 2
+      default.replication.factor: 3
+      min.insync.replicas: 2
+
+      # Performance tuning
+      num.network.threads: 8
+      num.io.threads: 16
+      socket.send.buffer.bytes: 102400
+      socket.receive.buffer.bytes: 102400
+      socket.request.max.bytes: 104857600
+
+      # Log retention
+      log.retention.hours: 168  # 7 days
+      log.segment.bytes: 1073741824  # 1 GB
+      log.retention.check.interval.ms: 300000  # 5 minutes
+
+      # Security & reliability
+      auto.create.topics.enable: false
+      unclean.leader.election.enable: false
+
+      # Compression
+      compression.type: producer
+
+      # Consumer group coordination
+      group.initial.rebalance.delay.ms: 3000
+
+      # Message size
+      message.max.bytes: 1048576  # 1 MB
+
+    # Prometheus metrics export
+    metricsConfig:
+      type: jmxPrometheusExporter
+      valueFrom:
+        configMapKeyRef:
+          name: kafka-metrics
+          key: kafka-metrics-config.yml
+
+    # Pod configuration
+    template:
+      pod:
+        # Security context
+        securityContext:
+          runAsNonRoot: true
+          fsGroup: 1000
+
+        # Anti-affinity: don't schedule Kafka pods on the same node
+        affinity:
+          podAntiAffinity:
+            requiredDuringSchedulingIgnoredDuringExecution:
+              - labelSelector:
+                  matchExpressions:
+                    - key: strimzi.io/name
+                      operator: In
+                      values:
+                        - social-events-cluster-kafka
+                topologyKey: kubernetes.io/hostname
+
+        # Spread pods across availability zones
+        topologySpreadConstraints:
+          - maxSkew: 1
+            topologyKey: topology.kubernetes.io/zone
+            whenUnsatisfiable: DoNotSchedule
+            labelSelector:
+              matchLabels:
+                strimzi.io/name: social-events-cluster-kafka
+
+  # Zookeeper configuration
+  zookeeper:
+    replicas: 3
+
+    resources:
+      requests:
+        memory: 2Gi
+        cpu: "500m"
+      limits:
+        memory: 4Gi
+        cpu: "1"
+
+    jvmOptions:
+      -Xms: 1024m
+      -Xmx: 1024m
+
+    storage:
+      type: persistent-claim
+      size: 100Gi
+      class: standard  # Change to your storage class
+      deleteClaim: false
+
+    metricsConfig:
+      type: jmxPrometheusExporter
+      valueFrom:
+        configMapKeyRef:
+          name: kafka-metrics
+          key: zookeeper-metrics-config.yml
+
+    template:
+      pod:
+        securityContext:
+          runAsNonRoot: true
+          fsGroup: 1000
+
+        affinity:
+          podAntiAffinity:
+            requiredDuringSchedulingIgnoredDuringExecution:
+              - labelSelector:
+                  matchExpressions:
+                    - key: strimzi.io/name
+                      operator: In
+                      values:
+                        - social-events-cluster-zookeeper
+                topologyKey: kubernetes.io/hostname
+
+  # Entity Operator for managing topics and users
+  entityOperator:
+    topicOperator:
+      resources:
+        requests:
+          memory: 512Mi
+          cpu: "200m"
+        limits:
+          memory: 512Mi
+          cpu: "500m"
+
+    userOperator:
+      resources:
+        requests:
+          memory: 512Mi
+          cpu: "200m"
+        limits:
+          memory: 512Mi
+          cpu: "500m"
+
+  # Kafka Exporter for consumer lag metrics
+  kafkaExporter:
+    topicRegex: ".*"
+    groupRegex: ".*"
+    resources:
+      requests:
+        memory: 128Mi
+        cpu: "100m"
+      limits:
+        memory: 256Mi
+        cpu: "200m"

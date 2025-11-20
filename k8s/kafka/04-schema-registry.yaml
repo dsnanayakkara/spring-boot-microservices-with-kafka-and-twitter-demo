@@ -1,0 +1,150 @@
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: schema-registry
+  namespace: kafka
+  labels:
+    app: schema-registry
+spec:
+  selector:
+    app: schema-registry
+  ports:
+  - protocol: TCP
+    port: 8081
+    targetPort: 8081
+    name: http
+  type: ClusterIP
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: schema-registry
+  namespace: kafka
+  labels:
+    app: schema-registry
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: schema-registry
+  template:
+    metadata:
+      labels:
+        app: schema-registry
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        fsGroup: 1000
+
+      containers:
+      - name: schema-registry
+        image: confluentinc/cp-schema-registry:7.5.0
+        ports:
+        - containerPort: 8081
+          name: http
+
+        env:
+        - name: SCHEMA_REGISTRY_HOST_NAME
+          value: schema-registry
+
+        # Connect to Kafka with TLS and SASL
+        - name: SCHEMA_REGISTRY_KAFKASTORE_BOOTSTRAP_SERVERS
+          value: "social-events-cluster-kafka-bootstrap:9093"
+
+        - name: SCHEMA_REGISTRY_KAFKASTORE_SECURITY_PROTOCOL
+          value: SASL_SSL
+
+        - name: SCHEMA_REGISTRY_KAFKASTORE_SASL_MECHANISM
+          value: SCRAM-SHA-512
+
+        # JAAS config from secret
+        - name: SCHEMA_REGISTRY_KAFKASTORE_SASL_JAAS_CONFIG
+          valueFrom:
+            secretKeyRef:
+              name: schema-registry-user
+              key: sasl.jaas.config
+
+        # SSL truststore configuration
+        - name: SCHEMA_REGISTRY_KAFKASTORE_SSL_TRUSTSTORE_LOCATION
+          value: /etc/kafka/secrets/truststore.p12
+
+        - name: SCHEMA_REGISTRY_KAFKASTORE_SSL_TRUSTSTORE_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: social-events-cluster-cluster-ca-cert
+              key: ca.password
+
+        - name: SCHEMA_REGISTRY_KAFKASTORE_SSL_TRUSTSTORE_TYPE
+          value: PKCS12
+
+        # Schema Registry listeners
+        - name: SCHEMA_REGISTRY_LISTENERS
+          value: http://0.0.0.0:8081
+
+        # Schema compatibility
+        - name: SCHEMA_REGISTRY_SCHEMA_COMPATIBILITY_LEVEL
+          value: backward
+
+        # JVM settings
+        - name: SCHEMA_REGISTRY_HEAP_OPTS
+          value: "-Xms512m -Xmx1g"
+
+        # Logging
+        - name: SCHEMA_REGISTRY_LOG4J_ROOT_LOGLEVEL
+          value: INFO
+
+        resources:
+          requests:
+            memory: 1Gi
+            cpu: 500m
+          limits:
+            memory: 2Gi
+            cpu: 1000m
+
+        volumeMounts:
+        - name: truststore
+          mountPath: /etc/kafka/secrets
+          readOnly: true
+
+        livenessProbe:
+          httpGet:
+            path: /
+            port: 8081
+          initialDelaySeconds: 60
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
+
+        readinessProbe:
+          httpGet:
+            path: /
+            port: 8081
+          initialDelaySeconds: 30
+          periodSeconds: 5
+          timeoutSeconds: 5
+          failureThreshold: 3
+
+      volumes:
+      - name: truststore
+        secret:
+          secretName: social-events-cluster-cluster-ca-cert
+          items:
+          - key: ca.p12
+            path: truststore.p12
+
+      # Pod anti-affinity for HA
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - weight: 100
+            podAffinityTerm:
+              labelSelector:
+                matchExpressions:
+                - key: app
+                  operator: In
+                  values:
+                  - schema-registry
+              topologyKey: kubernetes.io/hostname

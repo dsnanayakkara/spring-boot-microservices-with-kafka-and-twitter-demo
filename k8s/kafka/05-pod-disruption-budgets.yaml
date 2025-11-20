@@ -1,0 +1,38 @@
+---
+# Pod Disruption Budget for Kafka brokers
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: kafka-pdb
+  namespace: kafka
+spec:
+  minAvailable: 2  # At least 2 brokers must be available during disruptions
+  selector:
+    matchLabels:
+      strimzi.io/name: social-events-cluster-kafka
+
+---
+# Pod Disruption Budget for Zookeeper
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: zookeeper-pdb
+  namespace: kafka
+spec:
+  minAvailable: 2  # At least 2 ZK nodes for quorum
+  selector:
+    matchLabels:
+      strimzi.io/name: social-events-cluster-zookeeper
+
+---
+# Pod Disruption Budget for Schema Registry
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: schema-registry-pdb
+  namespace: kafka
+spec:
+  minAvailable: 1  # At least 1 instance during disruptions
+  selector:
+    matchLabels:
+      app: schema-registry

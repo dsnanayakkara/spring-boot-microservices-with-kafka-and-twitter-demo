@@ -1,0 +1,174 @@
+---
+# Network policy for Kafka brokers
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: kafka-network-policy
+  namespace: kafka
+spec:
+  podSelector:
+    matchLabels:
+      strimzi.io/name: social-events-cluster-kafka
+  policyTypes:
+  - Ingress
+  ingress:
+  # Allow from application namespace
+  - from:
+    - namespaceSelector:
+        matchLabels:
+          name: default
+    ports:
+    - protocol: TCP
+      port: 9092  # Plaintext (dev only)
+    - protocol: TCP
+      port: 9093  # TLS
+
+  # Allow inter-broker communication
+  - from:
+    - podSelector:
+        matchLabels:
+          strimzi.io/name: social-events-cluster-kafka
+    ports:
+    - protocol: TCP
+      port: 9091  # Replication
+    - protocol: TCP
+      port: 9093  # TLS
+
+  # Allow from Zookeeper
+  - from:
+    - podSelector:
+        matchLabels:
+          strimzi.io/name: social-events-cluster-zookeeper
+
+  # Allow from entity operators
+  - from:
+    - podSelector:
+        matchLabels:
+          strimzi.io/name: social-events-cluster-entity-operator
+
+  # Allow from Kafka Exporter
+  - from:
+    - podSelector:
+        matchLabels:
+          strimzi.io/name: social-events-cluster-kafka-exporter
+
+  # Allow from Schema Registry
+  - from:
+    - podSelector:
+        matchLabels:
+          app: schema-registry
+    ports:
+    - protocol: TCP
+      port: 9093
+
+  # Allow from monitoring namespace (Prometheus)
+  - from:
+    - namespaceSelector:
+        matchLabels:
+          name: monitoring
+    ports:
+    - protocol: TCP
+      port: 9404  # JMX exporter
+
+---
+# Network policy for Zookeeper
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: zookeeper-network-policy
+  namespace: kafka
+spec:
+  podSelector:
+    matchLabels:
+      strimzi.io/name: social-events-cluster-zookeeper
+  policyTypes:
+  - Ingress
+  ingress:
+  # Allow from Kafka brokers
+  - from:
+    - podSelector:
+        matchLabels:
+          strimzi.io/name: social-events-cluster-kafka
+    ports:
+    - protocol: TCP
+      port: 2181
+
+  # Allow inter-ZK communication
+  - from:
+    - podSelector:
+        matchLabels:
+          strimzi.io/name: social-events-cluster-zookeeper
+    ports:
+    - protocol: TCP
+      port: 2181
+    - protocol: TCP
+      port: 2888
+    - protocol: TCP
+      port: 3888
+
+  # Allow from entity operators
+  - from:
+    - podSelector:
+        matchLabels:
+          strimzi.io/name: social-events-cluster-entity-operator
+
+  # Allow from monitoring
+  - from:
+    - namespaceSelector:
+        matchLabels:
+          name: monitoring
+    ports:
+    - protocol: TCP
+      port: 9404
+
+---
+# Network policy for Schema Registry
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: schema-registry-network-policy
+  namespace: kafka
+spec:
+  podSelector:
+    matchLabels:
+      app: schema-registry
+  policyTypes:
+  - Ingress
+  - Egress
+  ingress:
+  # Allow from application namespace
+  - from:
+    - namespaceSelector:
+        matchLabels:
+          name: default
+    ports:
+    - protocol: TCP
+      port: 8081
+
+  # Allow from monitoring
+  - from:
+    - namespaceSelector:
+        matchLabels:
+          name: monitoring
+    ports:
+    - protocol: TCP
+      port: 8081
+
+  egress:
+  # Allow to Kafka brokers
+  - to:
+    - podSelector:
+        matchLabels:
+          strimzi.io/name: social-events-cluster-kafka
+    ports:
+    - protocol: TCP
+      port: 9093
+
+  # Allow DNS
+  - to:
+    - namespaceSelector:
+        matchLabels:
+          name: kube-system
+    ports:
+    - protocol: UDP
+      port: 53

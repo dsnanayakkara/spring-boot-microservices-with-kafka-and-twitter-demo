@@ -1,0 +1,258 @@
+---
+# Producer user for event-stream-service
+apiVersion: kafka.strimzi.io/v1beta2
+kind: KafkaUser
+metadata:
+  name: event-stream-producer
+  namespace: kafka
+  labels:
+    strimzi.io/cluster: social-events-cluster
+spec:
+  authentication:
+    type: scram-sha-512
+
+  authorization:
+    type: simple
+    acls:
+      # Write permission on social-events topic
+      - resource:
+          type: topic
+          name: social-events
+          patternType: literal
+        operations:
+          - Write
+          - Describe
+          - Create
+        host: "*"
+
+      # Idempotent producer permissions
+      - resource:
+          type: cluster
+        operations:
+          - IdempotentWrite
+        host: "*"
+
+---
+# Consumer user for kafka-consumer-service
+apiVersion: kafka.strimzi.io/v1beta2
+kind: KafkaUser
+metadata:
+  name: event-consumer
+  namespace: kafka
+  labels:
+    strimzi.io/cluster: social-events-cluster
+spec:
+  authentication:
+    type: scram-sha-512
+
+  authorization:
+    type: simple
+    acls:
+      # Read permission on social-events topic
+      - resource:
+          type: topic
+          name: social-events
+          patternType: literal
+        operations:
+          - Read
+          - Describe
+        host: "*"
+
+      # Consumer group permission
+      - resource:
+          type: group
+          name: social-events-consumer-group
+          patternType: literal
+        operations:
+          - Read
+        host: "*"
+
+---
+# Kafka Streams user
+apiVersion: kafka.strimzi.io/v1beta2
+kind: KafkaUser
+metadata:
+  name: kafka-streams-user
+  namespace: kafka
+  labels:
+    strimzi.io/cluster: social-events-cluster
+spec:
+  authentication:
+    type: scram-sha-512
+
+  authorization:
+    type: simple
+    acls:
+      # Read from source topics
+      - resource:
+          type: topic
+          name: social-events
+          patternType: literal
+        operations:
+          - Read
+          - Describe
+        host: "*"
+
+      # Write to output topics
+      - resource:
+          type: topic
+          name: social-events-filtered
+          patternType: literal
+        operations:
+          - Write
+          - Describe
+          - Create
+        host: "*"
+
+      - resource:
+          type: topic
+          name: social-events-word-count
+          patternType: literal
+        operations:
+          - Write
+          - Describe
+          - Create
+        host: "*"
+
+      # Kafka Streams internal topics (changelog, repartition)
+      - resource:
+          type: topic
+          name: kafka-streams
+          patternType: prefix
+        operations:
+          - All
+        host: "*"
+
+      # Consumer group for Kafka Streams
+      - resource:
+          type: group
+          name: kafka-streams
+          patternType: prefix
+        operations:
+          - Read
+        host: "*"
+
+      # Idempotent producer
+      - resource:
+          type: cluster
+        operations:
+          - IdempotentWrite
+        host: "*"
+
+---
+# Elasticsearch indexer user
+apiVersion: kafka.strimzi.io/v1beta2
+kind: KafkaUser
+metadata:
+  name: elasticsearch-indexer
+  namespace: kafka
+  labels:
+    strimzi.io/cluster: social-events-cluster
+spec:
+  authentication:
+    type: scram-sha-512
+
+  authorization:
+    type: simple
+    acls:
+      # Read from social-events topic
+      - resource:
+          type: topic
+          name: social-events
+          patternType: literal
+        operations:
+          - Read
+          - Describe
+        host: "*"
+
+      # Consumer group
+      - resource:
+          type: group
+          name: elasticsearch-consumer-group
+          patternType: literal
+        operations:
+          - Read
+        host: "*"
+
+---
+# Schema Registry user
+apiVersion: kafka.strimzi.io/v1beta2
+kind: KafkaUser
+metadata:
+  name: schema-registry-user
+  namespace: kafka
+  labels:
+    strimzi.io/cluster: social-events-cluster
+spec:
+  authentication:
+    type: scram-sha-512
+
+  authorization:
+    type: simple
+    acls:
+      # Schema Registry needs to read/write to _schemas topic
+      - resource:
+          type: topic
+          name: _schemas
+          patternType: literal
+        operations:
+          - All
+        host: "*"
+
+      # Schema Registry consumer group
+      - resource:
+          type: group
+          name: schema-registry
+          patternType: literal
+        operations:
+          - Read
+        host: "*"
+
+      # Cluster operations
+      - resource:
+          type: cluster
+        operations:
+          - Describe
+          - DescribeConfigs
+        host: "*"
+
+---
+# Admin user for management operations
+apiVersion: kafka.strimzi.io/v1beta2
+kind: KafkaUser
+metadata:
+  name: kafka-admin
+  namespace: kafka
+  labels:
+    strimzi.io/cluster: social-events-cluster
+spec:
+  authentication:
+    type: scram-sha-512
+
+  authorization:
+    type: simple
+    acls:
+      # Full access to all topics
+      - resource:
+          type: topic
+          name: "*"
+          patternType: literal
+        operations:
+          - All
+        host: "*"
+
+      # Full access to all consumer groups
+      - resource:
+          type: group
+          name: "*"
+          patternType: literal
+        operations:
+          - All
+        host: "*"
+
+      # Cluster operations
+      - resource:
+          type: cluster
+        operations:
+          - All
+        host: "*"

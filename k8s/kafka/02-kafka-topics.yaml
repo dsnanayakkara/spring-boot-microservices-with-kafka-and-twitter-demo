@@ -1,0 +1,79 @@
+---
+# Main events topic
+apiVersion: kafka.strimzi.io/v1beta2
+kind: KafkaTopic
+metadata:
+  name: social-events
+  namespace: kafka
+  labels:
+    strimzi.io/cluster: social-events-cluster
+spec:
+  partitions: 12  # Adjust based on throughput requirements
+  replicas: 3
+  config:
+    retention.ms: 604800000  # 7 days
+    segment.ms: 3600000      # 1 hour
+    compression.type: snappy
+    min.insync.replicas: 2
+    cleanup.policy: delete
+    max.message.bytes: 1048576  # 1 MB
+    segment.bytes: 1073741824   # 1 GB
+
+---
+# Filtered events topic (for Kafka Streams)
+apiVersion: kafka.strimzi.io/v1beta2
+kind: KafkaTopic
+metadata:
+  name: social-events-filtered
+  namespace: kafka
+  labels:
+    strimzi.io/cluster: social-events-cluster
+spec:
+  partitions: 12
+  replicas: 3
+  config:
+    retention.ms: 604800000
+    segment.ms: 3600000
+    compression.type: snappy
+    min.insync.replicas: 2
+    cleanup.policy: delete
+    max.message.bytes: 1048576
+
+---
+# Word count topic (for Kafka Streams aggregations)
+apiVersion: kafka.strimzi.io/v1beta2
+kind: KafkaTopic
+metadata:
+  name: social-events-word-count
+  namespace: kafka
+  labels:
+    strimzi.io/cluster: social-events-cluster
+spec:
+  partitions: 12
+  replicas: 3
+  config:
+    retention.ms: 604800000
+    compression.type: snappy
+    min.insync.replicas: 2
+    cleanup.policy: compact  # Compacted topic for aggregations
+    max.message.bytes: 1048576
+    segment.bytes: 1073741824
+
+---
+# Changelog topic for Kafka Streams state stores
+apiVersion: kafka.strimzi.io/v1beta2
+kind: KafkaTopic
+metadata:
+  name: kafka-streams-word-count-changelog
+  namespace: kafka
+  labels:
+    strimzi.io/cluster: social-events-cluster
+spec:
+  partitions: 12
+  replicas: 3
+  config:
+    retention.ms: 604800000
+    compression.type: snappy
+    min.insync.replicas: 2
+    cleanup.policy: compact
+    max.message.bytes: 1048576
