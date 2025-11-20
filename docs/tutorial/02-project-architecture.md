@@ -515,6 +515,105 @@ User sees event in real-time!
 
 ---
 
+### 🎯 Quick Exercise: Trace an Event's Journey
+
+**Time**: 10 minutes | **Difficulty**: Beginner
+
+**Task**: Draw or write out the complete journey of a single event through the system.
+
+**Event Details**:
+```json
+{
+  "userId": 42,
+  "id": 1700500000000,
+  "text": "Learning Kafka is awesome!",
+  "createdAt": "2024-11-20T10:00:00Z"
+}
+```
+
+**Questions**:
+
+1. **Step 1**: Which service creates this event?
+2. **Step 2**: Which Kafka partition will it go to? (Given userId=42 and 3 partitions)
+3. **Step 3**: How many services will consume this event? Name them.
+4. **Step 4**: Which service makes it searchable? What index?
+5. **Step 5**: How does the Dashboard UI discover this event?
+
+**Bonus**: Estimate the latency at each step.
+
+**Answers**:
+<details>
+<summary>Click to reveal answers</summary>
+
+**Step 1: Event Creation**
+- **Service**: Event Stream Service (Port 8080)
+- **Action**: `EnhancedMockStreamRunner` generates event
+- **Latency**: ~1ms (in-memory)
+
+**Step 2: Kafka Routing**
+- **Partition**: `hash(42) % 3 = 0` → **Partition 0**
+- **Topic**: `social-events`
+- **Replicas**: Stored on all 3 brokers
+- **Latency**: ~10-50ms (network + disk write)
+
+**Step 3: Parallel Consumption** (3 services consume simultaneously)
+
+**Consumer 1**: Kafka Consumer Service (Port 8081)
+- Group: `social-events-consumer-group`
+- Action: Logs metrics, increments counter
+- Latency: ~5ms
+
+**Consumer 2**: Kafka Streams Service (Port 8082)
+- Application ID: `social-events-streams-app`
+- Action:
+  - Filters (text exists ✓)
+  - Publishes to `social-events-filtered`
+  - Extracts words: ["learning", "kafka", "awesome"]
+  - Increments word counts
+- Latency: ~20ms
+
+**Consumer 3**: Elasticsearch Service (Port 8083)
+- Group: `elasticsearch-consumer-group`
+- Action: Transforms and indexes
+- Continues to Step 4...
+
+**Step 4: Search Indexing**
+- **Service**: Elasticsearch Service (Port 8083)
+- **Index**: `social-events-index`
+- **Transformation**:
+  ```json
+  {
+    "id": "1700500000000",
+    "userId": 42,
+    "text": "Learning Kafka is awesome!",
+    "createdAt": "2024-11-20T10:00:00Z"
+  }
+  ```
+- **Latency**: ~100-500ms (batch + index refresh)
+
+**Step 5: UI Discovery**
+- **Service**: Elastic Query Service (Port 8084)
+- **Action**: Dashboard polls `GET /api/v1/events` every 5 seconds
+- **Response**: Returns paginated events including our event
+- **Dashboard**: React re-renders, shows event in table
+- **Latency**: 0-5 seconds (depends on polling interval)
+
+**Total End-to-End Latency**:
+```
+Event Generation:     1ms
+Kafka Write:         50ms
+Parallel Processing: 20ms (concurrent)
+Elasticsearch Index: 500ms
+UI Poll Interval:   2500ms (average)
+━━━━━━━━━━━━━━━━━━━━━━━━━
+Total:              ~3 seconds (typical)
+```
+
+**Key Insight**: Multiple services process the same event in parallel, each for a different purpose!
+</details>
+
+---
+
 ## 4. Infrastructure Components
 
 ### Kafka Cluster
@@ -914,6 +1013,114 @@ npm run dev
 ```
 
 **Access Dashboard**: http://localhost:3000
+
+---
+
+### 🎯 Quick Exercise: Startup Health Check
+
+**Time**: 10 minutes | **Difficulty**: Beginner
+
+**Task**: Verify all services are running correctly using command line tools.
+
+**Checklist**:
+
+1. ✅ Check if all Docker containers are running
+2. ✅ Verify Kafka topics exist
+3. ✅ Confirm events are being produced
+4. ✅ Check Elasticsearch index
+5. ✅ Test REST API endpoints
+
+**Execute These Commands**:
+
+```bash
+# 1. Check Docker containers
+docker ps --format "table {{.Names}}\t{{.Status}}"
+
+# How many containers should be running?
+# Answer: ___________
+
+# 2. List Kafka topics
+docker exec kafka-broker-1 kafka-topics \
+  --bootstrap-server localhost:9092 \
+  --list
+
+# Expected topics: social-events, social-events-filtered, social-events-word-count
+# Did you see all three? Yes / No
+
+# 3. Peek at events (first 3)
+docker exec kafka-broker-1 kafka-console-consumer \
+  --bootstrap-server localhost:9092 \
+  --topic social-events \
+  --from-beginning \
+  --max-messages 3
+
+# Were events displayed? Yes / No
+
+# 4. Check Elasticsearch index
+curl http://localhost:9200/_cat/indices?v | grep social-events
+
+# Document count should be growing. Current count: ___________
+
+# 5. Test REST API
+curl http://localhost:8084/api/v1/events?size=1 | jq '.content[0]'
+
+# Did you get an event back? Yes / No
+```
+
+**Bonus Challenge**:
+Access the Dashboard UI at http://localhost:3000 and:
+- Count how many events are displayed
+- Note the total number of unique users
+- Search for "kafka" - how many results?
+
+**Answers**:
+<details>
+<summary>Click to reveal answers</summary>
+
+**1. Docker Containers**: Should be **7 running**
+- zookeeper
+- kafka-broker-1
+- kafka-broker-2
+- kafka-broker-3
+- schema-registry
+- elasticsearch
+- kibana
+
+**2. Kafka Topics**: Should see at least:
+- `social-events` (main topic)
+- `social-events-filtered` (from Streams)
+- `social-events-word-count` (from Streams)
+- `__consumer_offsets` (internal Kafka topic)
+- `_schemas` (Schema Registry topic)
+
+**3. Events Display**: Yes (you'll see binary Avro data - looks like gibberish but that's normal!)
+
+**4. Elasticsearch Index**:
+- Index name: `social-events-index`
+- Document count grows ~1/second (60/minute)
+- After 5 minutes: ~300 documents
+
+**5. REST API Response**: Should return JSON like:
+```json
+{
+  "content": [{
+    "id": "1700500000000",
+    "userId": 42,
+    "text": "Exploring Spring Boot and Kafka integration today!",
+    "createdAt": 1700500000000
+  }],
+  "totalElements": 123,
+  "totalPages": 7
+}
+```
+
+**If Any Service Fails**:
+- Check logs: `docker-compose -f kafka_cluster.yml logs -f <service-name>`
+- For Spring Boot services: Check terminal output for stack traces
+- Common issues: Port conflicts, insufficient memory, Docker not running
+
+**Success Criteria**: ✅ All checks pass = System is healthy!
+</details>
 
 ---
 

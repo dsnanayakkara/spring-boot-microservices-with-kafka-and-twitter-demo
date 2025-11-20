@@ -112,6 +112,62 @@ An **event** is a record of something that happened in your system at a specific
 
 ---
 
+### 🎯 Quick Exercise: Design Your Event-Driven System
+
+**Time**: 10 minutes | **Difficulty**: Beginner
+
+**Scenario**: You're building a food delivery app.
+
+**Task**: Design a simple event-driven architecture with:
+- **Services**: Order Service, Restaurant Service, Delivery Service, Notification Service
+- **Events**: OrderPlaced, OrderAccepted, OrderRejected, DeliveryAssigned, DeliveryCompleted
+
+**Questions**:
+1. Which service produces which events?
+2. Which service consumes which events?
+3. Draw the event flow when a customer places an order
+
+**Solution** (try it yourself first!):
+<details>
+<summary>Click to reveal answer</summary>
+
+**Event Producers**:
+- Order Service → OrderPlaced
+- Restaurant Service → OrderAccepted, OrderRejected
+- Delivery Service → DeliveryAssigned, DeliveryCompleted
+
+**Event Consumers**:
+- Restaurant Service ← OrderPlaced (decides to accept/reject)
+- Delivery Service ← OrderAccepted (assigns driver)
+- Notification Service ← ALL events (sends SMS/email)
+- Order Service ← DeliveryCompleted (updates order status)
+
+**Event Flow**:
+```
+1. Customer places order
+   → Order Service publishes OrderPlaced
+
+2. Restaurant Service consumes OrderPlaced
+   → Checks inventory
+   → Publishes OrderAccepted
+
+3. Delivery Service consumes OrderAccepted
+   → Assigns driver
+   → Publishes DeliveryAssigned
+
+4. Notification Service consumes all events
+   → Sends notifications to customer
+
+5. Delivery Service completes delivery
+   → Publishes DeliveryCompleted
+
+Benefits: Each service is independent, can scale separately,
+and system continues even if one service is down!
+```
+</details>
+
+---
+
 ## 2. Apache Kafka Fundamentals
 
 ### What is Apache Kafka?
@@ -279,6 +335,53 @@ Partition 2:
 - Replicas that are caught up with the leader
 - Leader won't acknowledge writes until all ISRs confirm
 - Ensures durability
+
+---
+
+### 🎯 Quick Exercise: Partition Math
+
+**Time**: 5 minutes | **Difficulty**: Beginner
+
+Given a topic `user-events` with the following:
+- **Partitions**: 3
+- **Replication Factor**: 3
+- **Total Brokers**: 3
+
+**Questions**:
+
+1. If you send an event with key `"user-42"`, which partition will it go to?
+   - Hint: `hash("user-42") % 3 = 1`
+
+2. How many total partition replicas exist across all brokers?
+   - Hint: partitions × replication factor
+
+3. If Broker 2 fails, can the system still handle writes?
+   - Hint: Think about remaining in-sync replicas
+
+4. You're sending 9000 events/second. With 3 partitions and 3 consumers (one per partition), what throughput should each consumer handle?
+
+**Answers**:
+<details>
+<summary>Click to reveal answers</summary>
+
+1. **Partition 1** (hash("user-42") % 3 = 1)
+   - All events with key "user-42" will always go to Partition 1
+
+2. **9 replicas total** (3 partitions × 3 replicas each)
+   - Each partition has 3 copies across different brokers
+
+3. **Yes, system continues**
+   - Remaining 2 brokers still have replicas for all partitions
+   - New leaders will be elected from ISRs
+   - Brief pause during rebalancing, then normal operation
+
+4. **3000 events/second per consumer** (9000 ÷ 3 = 3000)
+   - Events are distributed across 3 partitions
+   - Each consumer reads from one partition
+   - Perfect load balancing!
+
+**Key Insight**: Partitions enable parallelism. More partitions = more potential consumers = higher throughput!
+</details>
 
 ---
 
@@ -582,6 +685,104 @@ All groups consume the same events independently!
 
 ---
 
+### 🎯 Quick Exercise: Consumer Group Configuration
+
+**Time**: 10 minutes | **Difficulty**: Intermediate
+
+**Scenario**: You have a topic `orders` with **6 partitions**.
+
+**Task**: For each scenario below, determine how partitions will be assigned:
+
+**Scenario A**: 2 consumers in group `order-processor`
+```
+Consumer 1: ?
+Consumer 2: ?
+```
+
+**Scenario B**: 6 consumers in group `order-processor`
+```
+Consumer 1: ?
+Consumer 2: ?
+... (all 6)
+```
+
+**Scenario C**: 8 consumers in group `order-processor`
+```
+Consumer 1-6: ?
+Consumer 7-8: ?
+```
+
+**Scenario D**: Two different consumer groups
+- Group `elasticsearch-indexer`: 3 consumers
+- Group `analytics`: 2 consumers
+
+**Bonus Question**: Which scenario has the best resource utilization?
+
+**Answers**:
+<details>
+<summary>Click to reveal answers</summary>
+
+**Scenario A** (2 consumers, 6 partitions):
+```
+Consumer 1: Partitions 0, 1, 2
+Consumer 2: Partitions 3, 4, 5
+```
+Each consumer handles 3 partitions.
+
+**Scenario B** (6 consumers, 6 partitions):
+```
+Consumer 1: Partition 0
+Consumer 2: Partition 1
+Consumer 3: Partition 2
+Consumer 4: Partition 3
+Consumer 5: Partition 4
+Consumer 6: Partition 5
+```
+Perfect 1:1 mapping! ✅
+
+**Scenario C** (8 consumers, 6 partitions):
+```
+Consumer 1: Partition 0
+Consumer 2: Partition 1
+Consumer 3: Partition 2
+Consumer 4: Partition 3
+Consumer 5: Partition 4
+Consumer 6: Partition 5
+Consumer 7: IDLE (no partition)
+Consumer 8: IDLE (no partition)
+```
+2 consumers are wasted! ❌
+
+**Scenario D** (Two independent groups):
+Group `elasticsearch-indexer`:
+```
+Consumer 1: Partitions 0, 1
+Consumer 2: Partitions 2, 3
+Consumer 3: Partitions 4, 5
+```
+
+Group `analytics`:
+```
+Consumer 1: Partitions 0, 1, 2
+Consumer 2: Partitions 3, 4, 5
+```
+
+Both groups consume ALL events independently! ✅
+
+**Bonus Answer**: **Scenario B** has best utilization
+- One consumer per partition
+- Perfect load balancing
+- Maximum parallelism
+- No wasted resources
+
+**Key Takeaway**:
+- Max active consumers = number of partitions
+- Different consumer groups are independent
+- Plan partitions based on expected consumer count!
+</details>
+
+---
+
 ## 7. Offset Management
 
 ### What is an Offset?
@@ -686,6 +887,138 @@ auto-offset-reset: latest    # Start from newest events only
 **Use Cases**:
 - **earliest**: New analytics job needs historical data
 - **latest**: Real-time notifications (only new events matter)
+
+---
+
+### 🎯 Quick Exercise: Offset Troubleshooting
+
+**Time**: 8 minutes | **Difficulty**: Intermediate
+
+**Scenario**: You're debugging offset-related issues.
+
+**Problem 1**: Duplicate Processing
+```
+Your consumer processes the same events twice.
+Log shows:
+  10:00 AM - Processed event offset 100
+  10:05 AM - Consumer crashes
+  10:06 AM - Consumer restarts, processes event offset 100 again
+```
+
+**Question**: What's the cause? How do you fix it?
+
+**Problem 2**: Missing Events
+```
+Your consumer starts processing but skips the first 1000 events.
+Configuration:
+  auto-offset-reset: latest
+  No committed offsets exist (first time running)
+```
+
+**Question**: Why are events missing? What configuration change fixes this?
+
+**Problem 3**: Offset Lag Growing
+```
+Consumer group lag is increasing:
+  Time      Lag
+  10:00 AM  100
+  10:10 AM  500
+  10:20 AM  1200
+  10:30 AM  2500
+```
+
+**Question**: What does this indicate? List 3 possible solutions.
+
+**Answers**:
+<details>
+<parameter name="summary">Click to reveal answers</summary>
+
+**Problem 1: Duplicate Processing**
+
+**Cause**: Consumer crashed BEFORE committing offset
+- Processed event at offset 100
+- Crashed before `ack.acknowledge()` was called
+- Offset 99 is last committed
+- On restart, consumer reads from offset 100 again
+
+**Fix**: Enable **at-least-once** processing with **idempotent handling**
+```java
+@KafkaListener(topics = "events", ackMode = "MANUAL")
+public void consume(Event event, Acknowledgment ack) {
+    // Check if already processed (idempotency)
+    if (alreadyProcessed(event.getId())) {
+        ack.acknowledge();  // Commit anyway
+        return;
+    }
+
+    processEvent(event);      // Process first
+    ack.acknowledge();        // Then commit
+}
+```
+
+**Problem 2: Missing Events**
+
+**Cause**: `auto-offset-reset: latest` + no committed offset
+- Consumer starts for first time
+- No offset committed yet
+- Falls back to "latest"
+- Skips all existing events, only reads new ones
+
+**Fix**: Change to `auto-offset-reset: earliest`
+```yaml
+spring:
+  kafka:
+    consumer:
+      auto-offset-reset: earliest  # Start from beginning
+```
+
+**When to use each**:
+- `earliest`: Data processing, analytics, batch jobs
+- `latest`: Real-time notifications, monitoring
+
+**Problem 3: Growing Lag**
+
+**Cause**: Consumer can't keep up with producer rate
+- Events arriving faster than consumer can process
+- Lag grows over time
+
+**Solutions**:
+
+1. **Scale consumers** (quick fix):
+```yaml
+spring:
+  kafka:
+    listener:
+      concurrency: 5  # 5 consumer threads
+```
+
+2. **Increase batch size** (process more per poll):
+```yaml
+spring:
+  kafka:
+    consumer:
+      max-poll-records: 1000  # Larger batches
+```
+
+3. **Optimize processing** (make consumer faster):
+```java
+// Before: Individual DB writes
+events.forEach(e -> database.save(e));  // Slow!
+
+// After: Batch DB writes
+database.saveAll(events);  // Fast!
+```
+
+**Monitoring Command**:
+```bash
+docker exec kafka-broker-1 kafka-consumer-groups \
+  --bootstrap-server localhost:9092 \
+  --describe \
+  --group my-group
+```
+
+**Key Insight**: Always monitor consumer lag. Growing lag = trouble ahead!
+</details>
 
 ---
 
