@@ -1,0 +1,908 @@
+# Module 5: Real-Time Stream Processing with Kafka Streams
+
+**Duration**: 90 minutes
+**Difficulty**: Intermediate to Advanced
+**Prerequisites**: Modules 1-4 completed
+
+---
+
+## Learning Objectives
+
+By the end of this module, you will understand:
+
+✅ Kafka Streams fundamentals and architecture
+✅ Stream topology design patterns
+✅ Stateless transformations (filter, map, flatMap)
+✅ Stateful operations (aggregations, windowing)
+✅ Time semantics and windowing strategies
+✅ KStream vs KTable vs GlobalKTable
+✅ Building real-time analytics pipelines
+
+---
+
+## Table of Contents
+
+1. [Kafka Streams Overview](#1-kafka-streams-overview)
+2. [Stream Topology Concepts](#2-stream-topology-concepts)
+3. [Stateless Transformations](#3-stateless-transformations)
+4. [Stateful Operations](#4-stateful-operations)
+5. [Time and Windowing](#5-time-and-windowing)
+6. [Implementation: Word Count Analytics](#6-implementation-word-count-analytics)
+7. [KStream vs KTable](#7-kstream-vs-ktable)
+8. [Testing Stream Applications](#8-testing-stream-applications)
+9. [Summary](#9-summary)
+
+---
+
+## 1. Kafka Streams Overview
+
+### What is Kafka Streams?
+
+**Kafka Streams** is a client library for building stream processing applications that:
+- Process data stored in Kafka topics
+- Transform, aggregate, and enrich data in real-time
+- Produce results back to Kafka topics
+- Run as standard Java applications (no separate cluster needed)
+
+### Kafka Streams vs Other Stream Processing
+
+| Feature | Kafka Streams | Apache Flink | Spark Streaming |
+|---------|---------------|--------------|-----------------|
+| **Deployment** | Library (JVM app) | Cluster required | Cluster required |
+| **Latency** | Milliseconds | Milliseconds | Seconds (micro-batch) |
+| **State Management** | Built-in (RocksDB) | Built-in | External store |
+| **Exactly-Once** | Yes | Yes | Yes |
+| **Complexity** | Low | Medium | High |
+| **Best For** | Kafka-native apps | Complex CEP | Batch + Streaming |
+
+### Architecture
+
+```
+┌────────────────────────────────────────────────────────────┐
+│           Kafka Streams Application                         │
+│                                                             │
+│  ┌────────────────────────────────────────────────────┐   │
+│  │  Stream Topology (DAG)                             │   │
+│  │                                                     │   │
+│  │   Source → Transform → Aggregate → Sink            │   │
+│  │     ↓         ↓           ↓          ↓             │   │
+│  │   Read     Filter      Count       Write           │   │
+│  │   Topic    Map         Join        Topic           │   │
+│  └────────────────────────────────────────────────────┘   │
+│                                                             │
+│  ┌────────────────────────────────────────────────────┐   │
+│  │  State Stores (RocksDB)                            │   │
+│  │  - Aggregations                                    │   │
+│  │  - Joins                                           │   │
+│  │  - Windowed data                                   │   │
+│  └────────────────────────────────────────────────────┘   │
+│                                                             │
+└────────────────────────────────────────────────────────────┘
+         ↑                                     ↓
+    Input Topics                         Output Topics
+    (Kafka Cluster)                      (Kafka Cluster)
+```
+
+### Key Concepts
+
+**1. Stream**: Unbounded, continuously updating dataset
+**2. Topology**: Directed acyclic graph (DAG) of processing nodes
+**3. Processor**: Node that transforms data (filter, map, aggregate)
+**4. State Store**: Local database for stateful operations (RocksDB)
+**5. Changelog Topic**: Kafka topic backing the state store
+
+---
+
+## 2. Stream Topology Concepts
+
+### Stream Processing DAG
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                    STREAM TOPOLOGY                           │
+│                                                              │
+│  Source Topic: social-events                                │
+│         ↓                                                    │
+│    [KStream: all events]                                    │
+│         ↓                                                    │
+│    ┌─────────────────────────┐                              │
+│    │  Filter: text != null   │  (Stateless)                │
+│    └─────────────────────────┘                              │
+│         ↓                                                    │
+│    [KStream: filtered events]                               │
+│         ↓                                                    │
+│    ┌──────────────────────────────────┐                     │
+│    │  Branch to multiple paths        │                     │
+│    └──────────────────────────────────┘                     │
+│         ↓                   ↓                                │
+│    Path 1               Path 2                              │
+│         ↓                   ↓                                │
+│    To topic           FlatMap: extract words                │
+│    "filtered"              ↓                                │
+│                       GroupBy: word                          │
+│                            ↓                                │
+│                       Window: 5-min tumbling                │
+│                            ↓                                │
+│                       Count (Stateful)                      │
+│                            ↓                                │
+│                       To topic "word-count"                 │
+│                                                              │
+└─────────────────────────────────────────────────────────────┘
+```
+
+### Topology Building Blocks
+
+**1. Source Processor**: Read from topic
+```java
+StreamsBuilder builder = new StreamsBuilder();
+KStream<Long, SocialEventAvroModel> stream =
+    builder.stream("social-events");
+```
+
+**2. Transform Processor**: Modify stream
+```java
+KStream<Long, SocialEventAvroModel> filtered =
+    stream.filter((key, value) -> value.getText() != null);
+```
+
+**3. Sink Processor**: Write to topic
+```java
+filtered.to("social-events-filtered");
+```
+
+---
+
+## 3. Stateless Transformations
+
+### filter: Keep Events Matching Predicate
+
+```java
+KStream<Long, SocialEventAvroModel> stream = builder.stream("social-events");
+
+// Filter: only events with text content
+KStream<Long, SocialEventAvroModel> filtered =
+    stream.filter((key, value) ->
+        value.getText() != null &&
+        !value.getText().isEmpty()
+    );
+
+// Example:
+// Input:  {userId: 1, text: "Hello"}    → passes
+// Input:  {userId: 2, text: null}       → filtered out
+// Input:  {userId: 3, text: ""}         → filtered out
+```
+
+**Use Cases**:
+- Remove events that don't meet criteria
+- Data quality filtering
+- Conditional routing
+
+### map: Transform Each Event
+
+```java
+// Map: Extract text length
+KStream<Long, Integer> textLengths =
+    stream.map((key, value) ->
+        KeyValue.pair(key, value.getText().length())
+    );
+
+// Example:
+// Input:  {userId: 1, text: "Hello Kafka"}
+// Output: {userId: 1, value: 11}
+```
+
+**Use Cases**:
+- Data transformation
+- Format conversion
+- Enrichment
+
+### mapValues: Transform Only Values (Key Unchanged)
+
+```java
+// More efficient than map when key doesn't change
+KStream<Long, String> upperCaseTexts =
+    stream.mapValues(value -> value.getText().toUpperCase());
+
+// Example:
+// Input:  {userId: 1, text: "hello"}
+// Output: {userId: 1, value: "HELLO"}
+```
+
+### flatMap: One-to-Many Transformation
+
+```java
+// FlatMap: Extract all words from text
+KStream<String, String> words =
+    stream.flatMap((key, value) -> {
+        String text = value.getText();
+        String[] words = text.toLowerCase().split("\\W+");
+
+        List<KeyValue<String, String>> result = new ArrayList<>();
+        for (String word : words) {
+            if (!word.isEmpty()) {
+                result.add(KeyValue.pair(word, word));
+            }
+        }
+        return result;
+    });
+
+// Example:
+// Input:  {userId: 1, text: "Hello Kafka Streams"}
+// Output: {key: "hello", value: "hello"}
+//         {key: "kafka", value: "kafka"}
+//         {key: "streams", value: "streams"}
+```
+
+**Use Cases**:
+- Tokenization
+- Parsing multi-value fields
+- Event explosion
+
+### branch: Split Stream into Multiple Branches
+
+```java
+// Branch: Route events by criteria
+KStream<Long, SocialEventAvroModel>[] branches =
+    stream.branch(
+        (key, value) -> value.getText().contains("urgent"),  // Branch 0
+        (key, value) -> value.getText().contains("error"),   // Branch 1
+        (key, value) -> true                                  // Branch 2: default
+    );
+
+KStream<Long, SocialEventAvroModel> urgentEvents = branches[0];
+KStream<Long, SocialEventAvroModel> errorEvents = branches[1];
+KStream<Long, SocialEventAvroModel> normalEvents = branches[2];
+
+// Route to different topics
+urgentEvents.to("urgent-events");
+errorEvents.to("error-events");
+normalEvents.to("normal-events");
+```
+
+---
+
+## 4. Stateful Operations
+
+### groupBy: Group Events for Aggregation
+
+```java
+// Group by word
+KGroupedStream<String, String> groupedByWord =
+    words.groupByKey();
+
+// Or group by a different key
+KGroupedStream<String, SocialEventAvroModel> groupedByUser =
+    stream.groupBy(
+        (key, value) -> String.valueOf(value.getUserId()),
+        Grouped.with(Serdes.String(), avroSerde)
+    );
+```
+
+### count: Count Events per Key
+
+```java
+// Count occurrences of each word
+KTable<String, Long> wordCounts =
+    words.groupByKey()
+         .count();
+
+// Example state:
+// "kafka"  → 42
+// "spring" → 31
+// "boot"   → 28
+```
+
+### aggregate: Custom Aggregation
+
+```java
+// Aggregate: Count events per user
+KTable<String, Long> eventsPerUser =
+    stream.groupBy(
+        (key, value) -> String.valueOf(value.getUserId()),
+        Grouped.with(Serdes.String(), avroSerde)
+    )
+    .aggregate(
+        () -> 0L,                                    // Initializer
+        (aggKey, newValue, aggValue) -> aggValue + 1, // Adder
+        Materialized.with(Serdes.String(), Serdes.Long())
+    );
+
+// Example state:
+// "user-1" → 15
+// "user-2" → 23
+// "user-3" → 8
+```
+
+### reduce: Combine Values
+
+```java
+// Reduce: Keep latest event per user
+KTable<Long, SocialEventAvroModel> latestEventPerUser =
+    stream.groupByKey()
+          .reduce((oldValue, newValue) -> newValue);
+
+// Example:
+// User 1: Event A (time: 100) → Event B (time: 200)
+// Result: Event B (latest)
+```
+
+---
+
+## 5. Time and Windowing
+
+### Time Semantics
+
+**1. Event Time**: When the event occurred (from event data)
+```java
+// Use timestamp from event
+.windowedBy(TimeWindows.ofSizeWithNoGrace(Duration.ofMinutes(5)))
+```
+
+**2. Processing Time**: When the event is processed (wall-clock time)
+```java
+// Use current system time
+```
+
+**3. Ingestion Time**: When Kafka broker received the event (timestamp from broker)
+
+### Windowing Strategies
+
+**1. Tumbling Windows**: Fixed-size, non-overlapping
+
+```
+Time:     0    5    10   15   20   25   30
+          ├────┼────┼────┼────┼────┼────┤
+Window 1: [----]
+Window 2:      [----]
+Window 3:           [----]
+Window 4:                [----]
+
+Each event belongs to exactly one window.
+```
+
+```java
+TimeWindows.ofSizeWithNoGrace(Duration.ofMinutes(5));
+
+// Window 1: 00:00-00:05
+// Window 2: 00:05-00:10
+// Window 3: 00:10-00:15
+```
+
+**2. Hopping Windows**: Fixed-size, overlapping
+
+```
+Time:     0    5    10   15   20   25   30
+          ├────┼────┼────┼────┼────┼────┤
+Window 1: [----------]
+Window 2:      [----------]
+Window 3:           [----------]
+
+Each event belongs to multiple windows.
+```
+
+```java
+TimeWindows.ofSizeAndGrace(
+    Duration.ofMinutes(10),  // Window size
+    Duration.ofMinutes(5)    // Advance interval
+);
+
+// Window 1: 00:00-00:10
+// Window 2: 00:05-00:15
+// Window 3: 00:10-00:20
+```
+
+**3. Sliding Windows**: Variable-size, based on time difference
+
+```java
+// Used with joins
+JoinWindows.ofTimeDifferenceWithNoGrace(Duration.ofMinutes(5));
+
+// Event A at time T will join with Event B if:
+// B.timestamp is in [T-5min, T+5min]
+```
+
+**4. Session Windows**: Dynamic size, based on inactivity gap
+
+```
+User Activity:
+Event 1: 00:00
+Event 2: 00:02 (gap: 2min)
+Event 3: 00:04 (gap: 2min)
+--- 10 min gap ---
+Event 4: 00:15
+
+With 5-min inactivity gap:
+Session 1: [00:00 - 00:04]  (Events 1-3)
+Session 2: [00:15 - 00:15]  (Event 4)
+```
+
+```java
+SessionWindows.ofInactivityGapWithNoGrace(Duration.ofMinutes(5));
+```
+
+### Grace Period
+
+**Problem**: Late-arriving events
+
+```
+Window: 00:00-00:05
+Event A: timestamp = 00:03, arrives at 00:04 → in window
+Event B: timestamp = 00:04, arrives at 00:07 → late!
+```
+
+**Solution**: Grace period allows late events
+
+```java
+TimeWindows.ofSizeAndGrace(
+    Duration.ofMinutes(5),  // Window size
+    Duration.ofMinutes(2)   // Grace period
+);
+
+// Window 00:00-00:05 accepts events until 00:07
+```
+
+---
+
+## 6. Implementation: Word Count Analytics
+
+### Complete Topology
+
+**File**: `kafka-streams-service/src/main/java/.../SocialEventStreamsTopology.java`
+
+```java
+@Configuration
+@Slf4j
+public class SocialEventStreamsTopology {
+
+    private final KafkaStreamsConfigData kafkaStreamsConfigData;
+    private final SpecificAvroSerde<SocialEventAvroModel> avroSerde;
+
+    @Bean
+    public KStream<Long, SocialEventAvroModel> buildTopology(
+            StreamsBuilder streamsBuilder) {
+
+        // 1. Source: Read from social-events topic
+        KStream<Long, SocialEventAvroModel> stream =
+            streamsBuilder.stream(
+                kafkaStreamsConfigData.getInputTopicName(),
+                Consumed.with(Serdes.Long(), avroSerde)
+            );
+
+        log.info("Created source stream from topic: {}",
+            kafkaStreamsConfigData.getInputTopicName());
+
+        // 2. Filter: Only events with text
+        KStream<Long, SocialEventAvroModel> filteredStream =
+            stream.filter((key, value) -> {
+                boolean hasText = value.getText() != null &&
+                                !value.getText().toString().isEmpty();
+                if (hasText) {
+                    log.debug("Event passed filter: {}", value.getId());
+                } else {
+                    log.debug("Event filtered out: {}", value.getId());
+                }
+                return hasText;
+            });
+
+        // 3. Write filtered events to topic
+        filteredStream.to(
+            "social-events-filtered",
+            Produced.with(Serdes.Long(), avroSerde)
+        );
+
+        // 4. Extract words (flatMap)
+        KStream<String, String> words =
+            filteredStream.flatMapValues(value -> {
+                String text = value.getText().toString();
+                String[] wordArray = text.toLowerCase()
+                    .split("\\W+");
+
+                List<String> validWords = new ArrayList<>();
+                for (String word : wordArray) {
+                    if (!word.isEmpty() && word.length() > 2) {
+                        validWords.add(word);
+                    }
+                }
+
+                log.debug("Extracted {} words from event {}",
+                    validWords.size(), value.getId());
+                return validWords;
+            })
+            .selectKey((key, word) -> word);  // Re-key by word
+
+        // 5. Group by word
+        KGroupedStream<String, String> groupedWords =
+            words.groupByKey(
+                Grouped.with(Serdes.String(), Serdes.String())
+            );
+
+        // 6. Window: 5-minute tumbling windows
+        TimeWindowedKStream<String, String> windowedWords =
+            groupedWords.windowedBy(
+                TimeWindows.ofSizeWithNoGrace(Duration.ofMinutes(5))
+            );
+
+        // 7. Count: Aggregate word counts per window
+        KTable<Windowed<String>, Long> wordCounts =
+            windowedWords.count(
+                Materialized.as("word-counts-store")
+            );
+
+        // 8. Transform to output format and write to topic
+        wordCounts.toStream()
+            .map((windowedKey, count) -> {
+                String word = windowedKey.key();
+                long windowStart = windowedKey.window().start();
+                long windowEnd = windowedKey.window().end();
+
+                String outputKey = String.format("%s:%d-%d",
+                    word, windowStart, windowEnd);
+
+                log.debug("Word count: {} appeared {} times in window {}-{}",
+                    word, count, windowStart, windowEnd);
+
+                return KeyValue.pair(outputKey, count);
+            })
+            .to("social-events-word-count",
+                Produced.with(Serdes.String(), Serdes.Long()));
+
+        log.info("Stream topology built successfully");
+
+        return stream;
+    }
+}
+```
+
+### Step-by-Step Walkthrough
+
+**Step 1: Source**
+```java
+KStream<Long, SocialEventAvroModel> stream =
+    streamsBuilder.stream("social-events");
+
+// Reads all events from topic
+// Key: userId (Long)
+// Value: SocialEventAvroModel (Avro)
+```
+
+**Step 2: Filter**
+```java
+KStream<Long, SocialEventAvroModel> filtered =
+    stream.filter((key, value) ->
+        value.getText() != null && !value.getText().isEmpty()
+    );
+
+// Input:  100 events
+// Output: 85 events (15 had no text)
+```
+
+**Step 3: Sink Filtered Events**
+```java
+filtered.to("social-events-filtered");
+
+// Topic: social-events-filtered
+// Contains only events with text
+// Other services can consume this refined stream
+```
+
+**Step 4: Extract Words**
+```java
+KStream<String, String> words =
+    filtered.flatMapValues(value -> {
+        String[] words = value.getText().toLowerCase().split("\\W+");
+        return Arrays.asList(words).stream()
+            .filter(w -> w.length() > 2)  // Min 3 characters
+            .collect(Collectors.toList());
+    })
+    .selectKey((key, word) -> word);
+
+// Input:  {userId: 1, text: "Learning Kafka Streams"}
+// Output: {key: "learning", value: "learning"}
+//         {key: "kafka", value: "kafka"}
+//         {key: "streams", value: "streams"}
+```
+
+**Step 5-6: Group and Window**
+```java
+KGroupedStream<String, String> grouped = words.groupByKey();
+
+TimeWindowedKStream<String, String> windowed =
+    grouped.windowedBy(
+        TimeWindows.ofSizeWithNoGrace(Duration.ofMinutes(5))
+    );
+
+// Events grouped by word, then by 5-minute time windows
+```
+
+**Step 7: Count**
+```java
+KTable<Windowed<String>, Long> counts = windowed.count();
+
+// State Store: word-counts-store
+// Key: Windowed<"kafka"> (word + window)
+// Value: 15 (count in this window)
+```
+
+**Step 8: Output**
+```java
+counts.toStream()
+    .map((windowedKey, count) ->
+        KeyValue.pair(
+            windowedKey.key() + ":" +
+                windowedKey.window().start() + "-" +
+                windowedKey.window().end(),
+            count
+        )
+    )
+    .to("social-events-word-count");
+
+// Topic: social-events-word-count
+// Key: "kafka:1700500000000-1700500300000"
+// Value: 15
+```
+
+### Configuration
+
+```yaml
+kafka-streams-config:
+  application-id: social-events-streams-app
+  input-topic-name: social-events
+  state-dir: /tmp/kafka-streams
+  replication-factor: 3
+  num-stream-threads: 3
+
+  # Optimization
+  commit-interval-ms: 10000         # Commit every 10 seconds
+  cache-max-bytes-buffering: 10485760  # 10 MB cache
+```
+
+### State Store Persistence
+
+```
+/tmp/kafka-streams/
+  └── social-events-streams-app/
+      └── 0_0/
+          └── rocksdb/
+              └── word-counts-store/
+                  ├── 000001.log
+                  ├── CURRENT
+                  ├── MANIFEST-000002
+                  └── ...
+
+Backed by changelog topic: social-events-streams-app-word-counts-store-changelog
+```
+
+**Benefits**:
+- **Fault Tolerance**: If app crashes, restore from changelog
+- **Scalability**: Each partition has its own state store
+- **Fast Queries**: Local RocksDB reads (no network)
+
+---
+
+## 7. KStream vs KTable
+
+### KStream: Event Stream
+
+- **Represents**: Unbounded stream of events
+- **Semantics**: Insert-only (append)
+- **Example**: Click events, log entries
+
+```java
+KStream<String, String> clicks =
+    builder.stream("page-clicks");
+
+// Each event is independent
+// Event 1: {user: "alice", page: "home"}
+// Event 2: {user: "alice", page: "about"}
+// Both events exist independently
+```
+
+### KTable: Changelog Stream
+
+- **Represents**: Latest state per key
+- **Semantics**: Upsert (insert/update)
+- **Example**: User profiles, inventory
+
+```java
+KTable<String, String> userProfiles =
+    builder.table("user-profiles");
+
+// Latest value per key
+// Event 1: {key: "alice", value: "profile-v1"}
+// Event 2: {key: "alice", value: "profile-v2"}
+// KTable only keeps: {key: "alice", value: "profile-v2"}
+```
+
+### GlobalKTable: Replicated KTable
+
+- **Represents**: Full table replicated to all instances
+- **Use Case**: Reference data (countries, products)
+
+```java
+GlobalKTable<String, String> countries =
+    builder.globalTable("countries");
+
+// Every stream instance has full copy
+// Enables lookup joins without partitioning
+```
+
+### Comparison
+
+| Feature | KStream | KTable | GlobalKTable |
+|---------|---------|--------|--------------|
+| **Type** | Event stream | Changelog | Replicated table |
+| **Updates** | All events | Latest per key | Latest per key |
+| **Storage** | No state | Local state | Full replication |
+| **Joins** | Partitioned | Partitioned | Non-partitioned |
+| **Use Case** | Events | Aggregations | Reference data |
+
+---
+
+## 8. Testing Stream Applications
+
+### Unit Testing with TopologyTestDriver
+
+```java
+@Test
+public void testWordCountTopology() {
+    // 1. Build topology
+    StreamsBuilder builder = new StreamsBuilder();
+    KStream<Long, SocialEventAvroModel> stream =
+        topology.buildTopology(builder);
+
+    // 2. Create test driver
+    Topology topology = builder.build();
+    TopologyTestDriver testDriver =
+        new TopologyTestDriver(topology, streamsConfig());
+
+    // 3. Create input/output test topics
+    TestInputTopic<Long, SocialEventAvroModel> inputTopic =
+        testDriver.createInputTopic(
+            "social-events",
+            Serdes.Long().serializer(),
+            avroSerde.serializer()
+        );
+
+    TestOutputTopic<String, Long> outputTopic =
+        testDriver.createOutputTopic(
+            "social-events-word-count",
+            Serdes.String().deserializer(),
+            Serdes.Long().deserializer()
+        );
+
+    // 4. Send test events
+    SocialEventAvroModel event1 = createEvent("Hello Kafka Kafka");
+    inputTopic.pipeInput(1L, event1);
+
+    // 5. Verify output
+    KeyValue<String, Long> output1 = outputTopic.readKeyValue();
+    assertEquals("hello", extractWord(output1.key));
+    assertEquals(1L, output1.value);
+
+    KeyValue<String, Long> output2 = outputTopic.readKeyValue();
+    assertEquals("kafka", extractWord(output2.key));
+    assertEquals(2L, output2.value);  // "kafka" appeared twice
+
+    // 6. Cleanup
+    testDriver.close();
+}
+```
+
+### Integration Testing
+
+```java
+@SpringBootTest
+@EmbeddedKafka(partitions = 1, topics = {"social-events", "social-events-word-count"})
+public class StreamsIntegrationTest {
+
+    @Autowired
+    private KafkaTemplate<Long, SocialEventAvroModel> producer;
+
+    @Autowired
+    private KafkaStreamsConfiguration streamsConfig;
+
+    @Test
+    public void testEndToEndProcessing() throws Exception {
+        // Send event
+        SocialEventAvroModel event = createEvent("Test Kafka Streams");
+        producer.send("social-events", 1L, event).get();
+
+        // Wait for processing
+        Thread.sleep(5000);
+
+        // Verify output topic
+        ConsumerRecords<String, Long> records = consumeFromTopic("social-events-word-count");
+        assertTrue(records.count() > 0);
+
+        // Verify word counts
+        Map<String, Long> wordCounts = extractWordCounts(records);
+        assertEquals(1L, wordCounts.get("test"));
+        assertEquals(1L, wordCounts.get("kafka"));
+        assertEquals(1L, wordCounts.get("streams"));
+    }
+}
+```
+
+---
+
+## 9. Summary
+
+### Key Takeaways
+
+✅ **Kafka Streams** enables real-time stream processing as a library (no cluster)
+✅ **Topologies** define the processing flow (DAG of transformations)
+✅ **Stateless operations** (filter, map, flatMap) transform without storing state
+✅ **Stateful operations** (count, aggregate, join) use local state stores
+✅ **Windowing** groups events by time (tumbling, hopping, sliding, session)
+✅ **KStream** represents event streams, **KTable** represents changelog streams
+✅ **State stores** (RocksDB) enable fault-tolerant, scalable stateful processing
+
+### Stream Processing Patterns
+
+```
+1. Filtering: Remove unwanted events
+2. Transformation: Convert event format
+3. Enrichment: Join with reference data
+4. Aggregation: Count, sum, avg over windows
+5. Routing: Branch to different topics
+6. Deduplication: Remove duplicates
+7. Sessionization: Group by user session
+```
+
+### Best Practices
+
+✅ **Use meaningful application IDs** (unique per topology)
+✅ **Configure grace periods** for late events
+✅ **Choose appropriate window sizes** (balance latency vs completeness)
+✅ **Monitor lag** on changelog topics
+✅ **Test with TopologyTestDriver** before deploying
+✅ **Use KTables for latest state** (avoid redundant aggregations)
+✅ **Partition reference data** with GlobalKTable for joins
+
+---
+
+## Next Steps
+
+You've mastered stream processing! Now learn how to index events for full-text search.
+
+👉 **[Proceed to Module 6: Elasticsearch Integration](./06-elasticsearch-integration.md)**
+
+---
+
+## Hands-On Exercises
+
+### Exercise 1: Implement Sentiment Analysis
+
+**Task**: Add sentiment field to events (POSITIVE, NEGATIVE, NEUTRAL).
+
+**Steps**:
+1. Define sentiment enum in Avro schema
+2. Create sentiment analysis function (keyword-based)
+3. Add `mapValues` to enrich events with sentiment
+4. Count events per sentiment per 5-min window
+5. Write to `social-events-sentiment-count` topic
+
+### Exercise 2: Top N Words
+
+**Task**: Find top 10 most frequent words per hour.
+
+**Hints**:
+- Use 1-hour tumbling windows
+- Count words as before
+- Sort by count (descending)
+- Keep top 10
+- Use `suppress()` to emit only at window end
+
+### Exercise 3: User Activity Sessions
+
+**Task**: Group user events into sessions (5-min inactivity gap).
+
+**Steps**:
+1. Group by userId
+2. Use session windows (5-min gap)
+3. Count events per session
+4. Calculate average events per session
+
+---
+
+**Module Progress**: 5 of 10 complete
