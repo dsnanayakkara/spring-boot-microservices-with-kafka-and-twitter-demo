@@ -261,6 +261,174 @@ normalEvents.to("normal-events");
 
 ---
 
+### 🎯 Quick Exercise: Build a Stream Transformation Pipeline
+
+**Time**: 15 minutes | **Difficulty**: Intermediate
+
+**Scenario**: You're processing order events for an e-commerce platform.
+
+**Input Event**:
+```json
+{
+  "orderId": "ORD-12345",
+  "customerId": "CUST-789",
+  "items": "laptop,mouse,keyboard",
+  "totalAmount": 1299.99,
+  "status": "PENDING"
+}
+```
+
+**Task**: Build a stream processing pipeline that:
+
+1. **Filter**: Only keep orders with `totalAmount > 100`
+2. **MapValues**: Convert `totalAmount` to integer (round up)
+3. **FlatMapValues**: Split `items` string into individual items
+4. **Branch**: Route orders by amount:
+   - High value: `totalAmount >= 1000` → `high-value-orders`
+   - Medium value: `totalAmount >= 500` → `medium-value-orders`
+   - Regular: `totalAmount < 500` → `regular-orders`
+
+**Your Turn**: Write the Kafka Streams DSL code.
+
+**Template**:
+```java
+KStream<String, Order> orders = builder.stream("orders");
+
+// Step 1: Filter
+KStream<String, Order> filtered = orders.filter(???);
+
+// Step 2: Map values
+KStream<String, Order> mapped = filtered.mapValues(???);
+
+// Step 3: FlatMap (create item stream)
+KStream<String, String> items = mapped.flatMapValues(???);
+
+// Step 4: Branch
+KStream<String, Order>[] branches = mapped.branch(???);
+```
+
+**Bonus**: How would you count items per category in 1-hour windows?
+
+**Solution**:
+<details>
+<summary>Click to reveal solution</summary>
+
+```java
+// Input stream
+KStream<String, Order> orders = builder.stream(
+    "orders",
+    Consumed.with(Serdes.String(), orderSerde)
+);
+
+// Step 1: Filter orders > $100
+KStream<String, Order> filtered = orders.filter(
+    (key, order) -> order.getTotalAmount() > 100
+);
+
+// Step 2: Map values - round up amount
+KStream<String, Order> mapped = filtered.mapValues(order -> {
+    Order updated = order.copy();
+    updated.setTotalAmount(Math.ceil(order.getTotalAmount()));
+    return updated;
+});
+
+// Step 3: FlatMap - extract individual items
+KStream<String, String> items = mapped.flatMapValues(order -> {
+    String itemsString = order.getItems();
+    String[] itemArray = itemsString.split(",");
+
+    List<String> itemList = Arrays.stream(itemArray)
+        .map(String::trim)
+        .collect(Collectors.toList());
+
+    return itemList;
+});
+
+// Send items to separate topic
+items.to("order-items", Produced.with(Serdes.String(), Serdes.String()));
+
+// Step 4: Branch by order value
+KStream<String, Order>[] branches = mapped.branch(
+    (key, order) -> order.getTotalAmount() >= 1000,  // Branch 0: High
+    (key, order) -> order.getTotalAmount() >= 500,   // Branch 1: Medium
+    (key, order) -> true                             // Branch 2: Regular
+);
+
+KStream<String, Order> highValueOrders = branches[0];
+KStream<String, Order> mediumValueOrders = branches[1];
+KStream<String, Order> regularOrders = branches[2];
+
+// Route to different topics
+highValueOrders.to("high-value-orders");
+mediumValueOrders.to("medium-value-orders");
+regularOrders.to("regular-orders");
+
+// Log statistics
+highValueOrders.foreach((key, order) ->
+    log.info("High value order: ${}", order.getTotalAmount())
+);
+```
+
+**Bonus: Count Items per Category in 1-Hour Windows**
+
+```java
+// Assuming items have format "category:item" like "electronics:laptop"
+KStream<String, String> categorizedItems = mapped.flatMapValues(order -> {
+    String[] items = order.getItems().split(",");
+    return Arrays.stream(items)
+        .map(String::trim)
+        .collect(Collectors.toList());
+});
+
+// Extract category as key
+KStream<String, String> withCategoryKey = categorizedItems
+    .map((key, item) -> {
+        String category = item.split(":")[0];  // "electronics"
+        return KeyValue.pair(category, item);
+    });
+
+// Count by category in 1-hour tumbling windows
+KTable<Windowed<String>, Long> categoryCounts =
+    withCategoryKey
+        .groupByKey(Grouped.with(Serdes.String(), Serdes.String()))
+        .windowedBy(TimeWindows.ofSizeWithNoGrace(Duration.ofHours(1)))
+        .count();
+
+// Output to topic
+categoryCounts.toStream()
+    .map((windowedKey, count) -> {
+        String category = windowedKey.key();
+        long windowStart = windowedKey.window().start();
+        String outputKey = category + ":" + windowStart;
+        return KeyValue.pair(outputKey, count);
+    })
+    .to("category-counts-hourly");
+```
+
+**Expected Output**:
+```
+Input: "electronics:laptop,electronics:mouse,furniture:desk"
+
+After FlatMap:
+- "electronics:laptop"
+- "electronics:mouse"
+- "furniture:desk"
+
+After Category Grouping (1-hour window):
+- "electronics:1700496000000" → 2
+- "furniture:1700496000000" → 1
+```
+
+**Key Takeaways**:
+- **filter**: Removes unwanted events early (improves performance)
+- **mapValues**: Transforms values without repartitioning (efficient)
+- **flatMapValues**: One-to-many transformation (explodes events)
+- **branch**: Routes to different paths based on conditions
+- **Combining operations**: Build complex pipelines from simple operations!
+</details>
+
+---
+
 ## 4. Stateful Operations
 
 ### groupBy: Group Events for Aggregation
@@ -440,6 +608,160 @@ TimeWindows.ofSizeAndGrace(
 
 // Window 00:00-00:05 accepts events until 00:07
 ```
+
+---
+
+### 🎯 Quick Exercise: Window Calculations
+
+**Time**: 12 minutes | **Difficulty**: Intermediate
+
+**Scenario**: You're processing user activity events with different windowing strategies.
+
+**Given Events**:
+```
+Event A: timestamp = 10:00:00
+Event B: timestamp = 10:02:30
+Event C: timestamp = 10:05:00
+Event D: timestamp = 10:07:00
+Event E: timestamp = 10:12:00
+```
+
+**Question 1: Tumbling Windows** (5-minute windows, no grace period)
+
+Windows: `[10:00-10:05), [10:05-10:10), [10:10-10:15)`
+
+Which events fall into which windows?
+```
+Window 1 (10:00-10:05): ?
+Window 2 (10:05-10:10): ?
+Window 3 (10:10-10:15): ?
+```
+
+**Question 2: Hopping Windows** (10-minute size, 5-minute advance)
+
+Windows: `[10:00-10:10), [10:05-10:15), [10:10-10:20)`
+
+Which events belong to which windows? (Events can be in multiple windows!)
+```
+Window 1 (10:00-10:10): ?
+Window 2 (10:05-10:15): ?
+Window 3 (10:10-10:20): ?
+```
+
+**Question 3: Session Windows** (5-minute inactivity gap)
+
+Group events into sessions. A new session starts if gap > 5 minutes.
+```
+Session 1: ?
+Session 2: ?
+```
+
+**Question 4: Grace Period**
+
+Event F arrives late:
+```
+Event F: timestamp = 10:04:00, arrives at 10:11:00 (7 minutes late)
+```
+
+With tumbling 5-minute windows and 2-minute grace period:
+- Window for Event F: `[10:00-10:05)`
+- Grace period ends: `10:07:00`
+- Event arrives: `10:11:00`
+
+Is Event F accepted or dropped?
+
+**Answers**:
+<details>
+<summary>Click to reveal answers</summary>
+
+**Question 1: Tumbling Windows**
+```
+Window 1 [10:00-10:05): Event A (10:00:00), Event B (10:02:30)
+Window 2 [10:05-10:10): Event C (10:05:00), Event D (10:07:00)
+Window 3 [10:10-10:15): Event E (10:12:00)
+```
+
+**Key**: Each event belongs to exactly ONE window based on timestamp.
+
+---
+
+**Question 2: Hopping Windows**
+```
+Window 1 [10:00-10:10): Event A (10:00:00), Event B (10:02:30),
+                        Event C (10:05:00), Event D (10:07:00)
+
+Window 2 [10:05-10:15): Event C (10:05:00), Event D (10:07:00),
+                        Event E (10:12:00)
+
+Window 3 [10:10-10:20): Event E (10:12:00)
+```
+
+**Key**: Events can belong to MULTIPLE overlapping windows!
+- Event C and D appear in both Window 1 and Window 2
+- Event E appears in both Window 2 and Window 3
+
+**Use Case**: Moving averages, trend detection
+
+---
+
+**Question 3: Session Windows**
+```
+Gap analysis:
+A → B: 2.5 min gap (< 5 min, same session)
+B → C: 2.5 min gap (< 5 min, same session)
+C → D: 2 min gap (< 5 min, same session)
+D → E: 5 min gap (= 5 min, borderline, typically new session)
+
+Session 1 [10:00:00 - 10:07:00]: Event A, B, C, D
+Session 2 [10:12:00 - 10:12:00]: Event E
+```
+
+**Key**: Dynamic window size based on user inactivity!
+
+**Configuration**:
+```java
+SessionWindows.ofInactivityGapWithNoGrace(Duration.ofMinutes(5))
+```
+
+**Use Case**: User browsing sessions, click tracking
+
+---
+
+**Question 4: Grace Period**
+
+**Answer**: Event F is **DROPPED** ❌
+
+**Why**:
+```
+Event F timestamp: 10:04:00
+  → Should go to window [10:00-10:05)
+
+Window closes: 10:05:00
+Grace period: +2 minutes
+Final deadline: 10:07:00
+
+Event arrives: 10:11:00 (4 minutes after deadline!)
+  → Too late, dropped
+```
+
+**What if Event F arrived at 10:06:00?**
+```
+Arrival: 10:06:00 (within grace period)
+  → ACCEPTED ✅
+  → Added to window [10:00-10:05)
+  → Window result updated
+```
+
+**Configuration**:
+```java
+TimeWindows.ofSizeAndGrace(
+    Duration.ofMinutes(5),  // Window size
+    Duration.ofMinutes(2)   // Grace period
+);
+```
+
+**Key Insight**: Grace periods handle out-of-order events, but have limits!
+</details>
 
 ---
 

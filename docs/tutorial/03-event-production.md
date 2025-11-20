@@ -253,6 +253,136 @@ kafka/kafka-model/target/generated-sources/avro/
 
 ---
 
+### 🎯 Quick Exercise: Design Your Avro Schema
+
+**Time**: 15 minutes | **Difficulty**: Intermediate
+
+**Scenario**: You're building a real-time temperature monitoring system for IoT devices.
+
+**Task**: Design an Avro schema for temperature readings.
+
+**Requirements**:
+- Device ID (required, string)
+- Temperature in Celsius (required, decimal)
+- Timestamp (required, long, milliseconds since epoch)
+- Location (optional, string)
+- Battery level (optional, integer, 0-100)
+
+**Your Turn**: Write the Avro schema in JSON format.
+
+**Template**:
+```json
+{
+  "namespace": "com.iot.sensors.avro",
+  "type": "record",
+  "name": "TemperatureReading",
+  "doc": "???",
+  "fields": [
+    {
+      "name": "???",
+      "type": "???",
+      "doc": "???"
+    }
+    // Add more fields...
+  ]
+}
+```
+
+**Bonus Questions**:
+1. How would you add a field for humidity readings later without breaking existing consumers?
+2. What logical type should you use for temperature to maintain precision?
+
+**Solution**:
+<details>
+<summary>Click to reveal solution</summary>
+
+```json
+{
+  "namespace": "com.iot.sensors.avro",
+  "type": "record",
+  "name": "TemperatureReading",
+  "doc": "Represents a temperature reading from an IoT sensor device",
+  "fields": [
+    {
+      "name": "deviceId",
+      "type": "string",
+      "doc": "Unique identifier of the IoT device"
+    },
+    {
+      "name": "temperature",
+      "type": {
+        "type": "bytes",
+        "logicalType": "decimal",
+        "precision": 5,
+        "scale": 2
+      },
+      "doc": "Temperature in Celsius (e.g., 23.45)"
+    },
+    {
+      "name": "timestamp",
+      "type": "long",
+      "logicalType": "timestamp-millis",
+      "doc": "Time when reading was taken (milliseconds since epoch)"
+    },
+    {
+      "name": "location",
+      "type": ["null", "string"],
+      "default": null,
+      "doc": "Physical location of the device (optional)"
+    },
+    {
+      "name": "batteryLevel",
+      "type": ["null", "int"],
+      "default": null,
+      "doc": "Battery level percentage (0-100, optional)"
+    }
+  ]
+}
+```
+
+**Bonus Answers**:
+
+1. **Adding humidity field** (backward compatible):
+```json
+{
+  "name": "humidity",
+  "type": ["null", "double"],
+  "default": null,
+  "doc": "Relative humidity percentage (0-100, optional)"
+}
+```
+- Use union type `["null", "double"]`
+- Provide default value `null`
+- Old consumers ignore this field
+- New consumers can read it
+
+2. **Temperature precision**:
+Use `decimal` logical type:
+```json
+{
+  "type": "bytes",
+  "logicalType": "decimal",
+  "precision": 5,  // Total digits
+  "scale": 2       // Decimal places
+}
+```
+This allows values like 999.99°C with exact precision (no floating-point errors).
+
+**Alternative** (simpler but less precise):
+```json
+{
+  "name": "temperature",
+  "type": "double",
+  "doc": "Temperature in Celsius"
+}
+```
+Use `double` for simplicity if precision isn't critical.
+
+**Key Learning**: Always think about schema evolution when designing! Use optional fields with defaults for future additions.
+</details>
+
+---
+
 ## 4. Implementing Kafka Producers
 
 ### Generic Avro Producer
@@ -637,6 +767,137 @@ public class KafkaProducerConfig {
     }
 }
 ```
+
+---
+
+### 🎯 Quick Exercise: Tune Producer Configuration
+
+**Time**: 15 minutes | **Difficulty**: Intermediate
+
+**Scenario**: You need to configure producers for different use cases.
+
+**Task**: Choose the optimal configuration for each scenario.
+
+**Scenario A**: Financial Transactions
+- Requirements: No data loss allowed, strict durability
+- Latency: Acceptable (can be ~50-100ms)
+- Choose from:
+  1. `acks=0, linger.ms=0, compression=none`
+  2. `acks=all, linger.ms=0, compression=gzip`
+  3. `acks=1, linger.ms=10, compression=snappy`
+
+**Scenario B**: Real-Time Clickstream
+- Requirements: Maximum throughput (100k events/sec)
+- Some data loss is acceptable
+- Latency: As low as possible
+- Choose from:
+  1. `acks=all, batch.size=16KB, linger.ms=50`
+  2. `acks=0, batch.size=64KB, linger.ms=100`
+  3. `acks=1, batch.size=32KB, linger.ms=5`
+
+**Scenario C**: Log Aggregation
+- Requirements: High throughput, balance durability and performance
+- Moderate data loss acceptable
+- Can tolerate slight latency for better compression
+- Choose from:
+  1. `acks=0, batch.size=16KB, linger.ms=0, compression=none`
+  2. `acks=1, batch.size=64KB, linger.ms=20, compression=lz4`
+  3. `acks=all, batch.size=128KB, linger.ms=100, compression=gzip`
+
+**Bonus**: What `buffer.memory` setting would you use for a producer sending 10k events/second, where each event is ~1KB?
+
+**Answers**:
+<details>
+<summary>Click to reveal answers</summary>
+
+**Scenario A: Financial Transactions** → **Option 2**
+```yaml
+acks: all                 # Wait for all replicas (maximum durability)
+linger-ms: 0              # Send immediately (low latency)
+compression-type: gzip    # Better compression for smaller messages
+retries: 10               # Retry more times
+min-insync-replicas: 2    # At least 2 replicas must acknowledge
+```
+
+**Why**:
+- `acks=all`: Ensures durability - event written to all in-sync replicas
+- `linger.ms=0`: No batching delay, immediate send
+- `gzip`: Good compression, worth the CPU cost for financial data
+- **Never** use `acks=0` for financial transactions!
+
+---
+
+**Scenario B: Real-Time Clickstream** → **Option 2**
+```yaml
+acks: 0                   # Fire-and-forget (maximum throughput)
+batch-size: 65536         # 64 KB batches
+linger-ms: 100            # Wait to accumulate more events
+compression-type: lz4     # Fast compression
+buffer-memory: 67108864   # 64 MB buffer
+```
+
+**Why**:
+- `acks=0`: No waiting for acknowledgment = lowest latency, highest throughput
+- Large `batch.size`: More events per request = higher throughput
+- Higher `linger.ms`: Allows more events to accumulate in batch
+- `lz4`: Fastest compression algorithm
+- Trade-off: Some events may be lost if broker fails, but acceptable for clickstream
+
+---
+
+**Scenario C: Log Aggregation** → **Option 2**
+```yaml
+acks: 1                   # Leader acknowledgment (balanced)
+batch-size: 65536         # 64 KB batches
+linger-ms: 20             # Small batching delay
+compression-type: lz4     # Fast compression, good ratio
+retries: 3                # Some retries
+```
+
+**Why**:
+- `acks=1`: Leader confirms = good balance of durability and performance
+- `lz4` compression: Fast and effective for logs
+- Moderate `linger.ms`: Better batching without too much latency
+- Good throughput while maintaining reasonable durability
+
+---
+
+**Bonus: Buffer Memory Calculation**
+
+**Given**:
+- 10,000 events/second
+- 1 KB per event
+- Throughput: 10 MB/second
+
+**Calculation**:
+```
+Data rate: 10,000 events/sec × 1 KB = 10 MB/sec
+
+Buffer should hold at least 5-10 seconds of data:
+  10 MB/sec × 5 sec = 50 MB minimum
+  10 MB/sec × 10 sec = 100 MB safe
+
+Recommendation: 64 MB to 128 MB
+```
+
+**Configuration**:
+```yaml
+buffer-memory: 67108864  # 64 MB
+# or
+buffer-memory: 134217728 # 128 MB (safer for bursts)
+```
+
+**Why buffer matters**:
+- Producer accumulates batches in memory
+- If buffer fills, `send()` blocks or fails
+- Larger buffer handles traffic spikes better
+- Too large = wastes memory
+
+**Key Takeaway**: Configuration is about trade-offs. Match your settings to your requirements:
+- **Durability** vs **Throughput**
+- **Latency** vs **Compression**
+- **Reliability** vs **Performance**
+</details>
 
 ---
 
